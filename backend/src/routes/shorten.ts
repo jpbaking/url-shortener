@@ -87,24 +87,16 @@ router.post('/', async (req: Request, res: Response) => {
   const createdByIp = getClientIp(req);
 
   try {
-    // Dedup: same IP + same long URL returns the existing short code.
-    // If that link has already expired, fall through and create a fresh one.
-    const existing = await prisma.shortUrl.findFirst({
-      where: {
-        longUrl,
-        createdByIp,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
-      },
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const recent = await prisma.shortUrl.findFirst({
+      where: { longUrl, createdByIp, createdAt: { gt: oneHourAgo } },
+      select: { createdAt: true },
     });
-
-    if (existing) {
-      res.json({
-        shortUrl: `${process.env.REDIRECT_DOMAIN}/${existing.code}`,
-        expiresAt: existing.expiresAt?.toISOString() ?? null,
-      });
+    if (recent) {
+      const retryAfter = Math.ceil((recent.createdAt.getTime() + 60 * 60 * 1000 - Date.now()) / 1000);
+      res.status(429)
+        .set('Retry-After', String(retryAfter))
+        .json({ error: 'This URL was already shortened by your IP in the last hour. Please try again later.' });
       return;
     }
 

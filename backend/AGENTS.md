@@ -9,7 +9,8 @@ All API behavior: short code generation, expiry logic, dedup, click counting, an
 ## Local Contracts
 
 - Short codes are random alphanumeric strings generated from a 62-character alphabet (`src/base62.ts` → `generateCode(length)`). Minimum length is 6, maximum is 16. Creation attempts a direct insert at length 6; on each `P2002` unique-constraint collision the length increments by 1 and retries up to 16.
-- Dedup: same IP + same `longUrl` returns the existing code if it has not expired. Expired entries are ignored and a fresh code is created.
+- Every submission always creates a new short code, even if the same IP submits the same `longUrl` again.
+- Rate limit: if the same IP submits the same `longUrl` within 1 hour of a prior submission, the request is rejected with 429 and a `Retry-After` header (seconds until the window clears).
 - `longUrl` must start with `http://` or `https://` and be ≤ 2048 characters.
 - Expiry units: `minutes`, `hours`, `days`, `weeks`, `months`. Omitted or empty `expiryValue` = no expiry.
 - `REDIRECT_DOMAIN` env var sets the domain prefix in the returned short URL (no trailing slash).
