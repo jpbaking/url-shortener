@@ -1,0 +1,40 @@
+# Environment files — never commit these
+.env
+backend/.env
+
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Build outputs
+frontend/dist/
+backend/dist/
+
+# Prisma generated client
+backend/node_modules/.prisma/
+
+# Playwright test artifacts
+playwright/playwright-report/
+playwright/test-results/
+playwright/blob-report/
+playwright/.cache/
+
+# AI coding tools
+.claude/
+.cline/
+.clinerules/
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.aider*
+.continue/
+.codeium/
+.roo/
+.tabnine/
+.github/copilot-instructions.md
+
+# OS
+.DS_Store
+Thumbs.db

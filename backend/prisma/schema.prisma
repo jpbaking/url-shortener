@@ -1,0 +1,21 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+model ShortUrl {
+  id          BigInt    @id @default(autoincrement())
+  code        String    @unique @db.VarChar(16)
+  longUrl     String
+  createdByIp String
+  clickCount  Int       @default(0)
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([longUrl, createdByIp])
+}

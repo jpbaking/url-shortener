@@ -1,0 +1,75 @@
+services:
+
+  nginx:
+    build:
+      context: ./frontend        # React build happens here
+      dockerfile: Dockerfile
+      provenance: false
+    ports:
+      - "80:80"                  # Only container exposed to the outside
+    environment:
+      SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
+      S_DOMAIN: ${S_DOMAIN:-s.url}
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+    networks:
+      default:
+        aliases:
+          - ${SHORT_DOMAIN:-short.url}
+          - ${S_DOMAIN:-s.url}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      provenance: false
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIRECT_DOMAIN: ${S_SCHEME:-http}://${S_DOMAIN:-s.url}
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  playwright:
+    build:
+      context: ./playwright
+      dockerfile: Dockerfile
+      provenance: false
+    profiles: [test]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
+      S_DOMAIN: ${S_DOMAIN:-s.url}
+      S_SCHEME: ${S_SCHEME:-http}
+    volumes:
+      - ./playwright/playwright-report:/app/playwright-report
+      - ./playwright/test-results:/app/test-results
+    depends_on:
+      nginx:
+        condition: service_started
+      postgres:
+        condition: service_healthy
+    ipc: host
+
+volumes:
+  pg_data:

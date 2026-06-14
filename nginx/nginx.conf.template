@@ -1,0 +1,42 @@
+# ${SHORT_DOMAIN} — serves the React SPA and proxies API calls to the backend
+server {
+    listen 80;
+    server_name ${SHORT_DOMAIN};
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Proxy API requests to the backend service
+    location /api/ {
+        resolver           127.0.0.11 valid=10s;
+        set $backend       http://backend:3000;
+        proxy_pass         $backend;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+
+    # SPA fallback — all non-API, non-file routes serve index.html
+    location / {
+        try_files $uri /index.html;
+    }
+}
+
+# ${S_DOMAIN} — proxies all requests to the backend redirect handler
+server {
+    listen 80;
+    server_name ${S_DOMAIN};
+
+    location / {
+        resolver           127.0.0.11 valid=10s;
+        set $backend       http://backend:3000;
+        proxy_pass         $backend;
+        proxy_http_version 1.1;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+    }
+}

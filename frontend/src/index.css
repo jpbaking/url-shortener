@@ -1,0 +1,59 @@
+/* Design tokens
+   Palette: deep navy base, off-white surface, slate mid, electric blue accent
+   Typography: IBM Plex Mono (display + utility) / IBM Plex Sans (body)
+   Signature element: the input and result share one continuous monospace line —
+   the URL flows through the interface as raw text, undecorated.
+*/
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg:         #0d1117;
+  --surface:    #161b22;
+  --border:     #30363d;
+  --muted:      #8b949e;
+  --text:       #e6edf3;
+  --accent:     #4493f8;
+  --accent-dim: #1f3a5f;
+  --error:      #f85149;
+  --success:    #3fb950;
+
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-sans: 'IBM Plex Sans', sans-serif;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Visible keyboard focus for accessibility */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

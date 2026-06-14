@@ -1,0 +1,19 @@
+{
+  "name": "url-shortener-playwright",
+  "version": "1.0.0",
+  "private": true,
+  "license": "0BSD",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
+  },
+  "dependencies": {
+    "pg": "^8.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.60.0",
+    "@types/pg": "^8.0.0"
+  }
+}
