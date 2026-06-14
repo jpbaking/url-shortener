@@ -51,7 +51,7 @@ test.describe('redirect handler', () => {
   });
 
   test('XSS payload in longUrl is HTML-escaped in the redirect body', async ({ request }) => {
-    const xssPayload = 'https://example.com/?x="><script>alert(1)</script>';
+    const xssPayload = `https://example.com/${Math.random().toString(36).slice(2)}?x="><script>alert(1)</script>`;
     const shortUrl   = await shorten(request, xssPayload);
     const code       = codeFrom(shortUrl);
 

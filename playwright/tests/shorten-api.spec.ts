@@ -52,13 +52,17 @@ test.describe('POST /api/shorten', () => {
     expect(ts).toBeLessThan(after  + 61 * 60_000);
   });
 
-  test('dedup: same URL from same IP returns the existing short code', async ({ request }) => {
-    const longUrl = uniqueUrl('/dedup');
-    // Sequential requests to avoid a race between two simultaneous inserts.
+  test('429 when same IP submits the same URL within 1 hour', async ({ request }) => {
+    const longUrl = uniqueUrl('/rate-limit');
     const r1 = await request.post(API, { data: { longUrl } });
+    expect(r1.status()).toBe(201);
+
     const r2 = await request.post(API, { data: { longUrl } });
-    const [b1, b2] = await Promise.all([r1.json(), r2.json()]);
-    expect(b1.shortUrl).toBe(b2.shortUrl);
+    expect(r2.status()).toBe(429);
+    expect((await r2.json()).error).toMatch(/hour/i);
+    const retryAfter = Number(r2.headers()['retry-after']);
+    expect(retryAfter).toBeGreaterThan(0);
+    expect(retryAfter).toBeLessThanOrEqual(3600);
   });
 
   test('400 when longUrl is missing', async ({ request }) => {
@@ -187,14 +191,15 @@ test.describe('POST /api/shorten', () => {
     expect((await response.json()).error).toMatch(/expiryValue/);
   });
 
-  test('dedup skips expired entry and returns a fresh short code', async ({ request }) => {
-    const longUrl = uniqueUrl('/dedup-expired');
+  test('201 with a fresh code after the 1-hour cooldown window has passed', async ({ request }) => {
+    const longUrl = uniqueUrl('/rate-limit-elapsed');
 
     const r1 = await request.post(API, { data: { longUrl } });
     const { shortUrl: shortUrl1 } = await r1.json();
     const code1 = shortUrl1.split('/').pop();
 
-    await psql(`UPDATE "ShortUrl" SET "expiresAt" = '2020-01-01 00:00:00' WHERE code = '${code1}'`);
+    // Backdate the entry so the cooldown window is considered elapsed.
+    await psql(`UPDATE "ShortUrl" SET "createdAt" = NOW() - INTERVAL '2 hours' WHERE code = '${code1}'`);
 
     const r2 = await request.post(API, { data: { longUrl } });
     expect(r2.status()).toBe(201);
