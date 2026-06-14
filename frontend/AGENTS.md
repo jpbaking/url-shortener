@@ -13,6 +13,7 @@ All UI code lives in `src/`. The compiled static output is bundled into the Ngin
 - UI state machine: `idle → loading → success | error`. The "Shorten another" button resets to `idle`.
 - "Copied!" label auto-clears after 2 seconds.
 - Enter key on the URL input triggers shortening.
+- The wordmark and page `<title>` are derived from `window.location.hostname` at runtime — no hardcoded domain name in source. `index.html` carries only a generic fallback title.
 
 ## Work Guidance
 

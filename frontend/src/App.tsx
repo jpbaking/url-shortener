@@ -1,4 +1,4 @@
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState, useRef, useEffect, KeyboardEvent } from 'react';
 import styles from './App.module.css';
 
 type ExpiryUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
@@ -25,6 +25,12 @@ export default function App() {
   const [state, setState]             = useState<State>({ status: 'idle' });
   const [copied, setCopied]           = useState(false);
   const inputRef                      = useRef<HTMLInputElement>(null);
+
+  const domain = window.location.hostname;
+
+  useEffect(() => {
+    document.title = `${domain} — URL Shortener`;
+  }, [domain]);
 
   async function shorten() {
     const trimmed = longUrl.trim();
@@ -100,7 +106,7 @@ export default function App() {
     <main className={styles.main}>
       <div className={styles.card}>
         <header className={styles.header}>
-          <span className={styles.wordmark}>short.url</span>
+          <span className={styles.wordmark}>{domain}</span>
           <p className={styles.tagline}>Paste a long URL. Get a short one.</p>
         </header>
 
