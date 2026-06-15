@@ -12,8 +12,8 @@ Express route handlers for the two core operations: shortening a URL and resolvi
 ### shorten.ts
 
 - Accepts JSON body: `{ longUrl: string, expiryValue?: number, expiryUnit?: ExpiryUnit }`.
-- Returns `{ shortUrl: string, expiresAt: string | null }` on success (201 for new, 200 for dedup hit).
-- Dedup path returns the existing code; creation path attempts a direct insert with a random 6-char code, retrying with incrementally longer codes (up to 16) on `P2002` collisions.
+- Returns `{ shortUrl: string, expiresAt: string | null }` with status `201` on success. There is no dedup path — every accepted submission creates a new code.
+- Creation attempts a direct insert with a random 6-char code, retrying with incrementally longer codes (up to 16) on `P2002` collisions.
 - Rate limit: same IP + same `longUrl` within 1 hour → 429 with `Retry-After` header (seconds until window clears).
 - Client IP is taken from `X-Real-IP` (set by Nginx, which resolves the real address via `real_ip` module); falls back to socket address for local dev.
 

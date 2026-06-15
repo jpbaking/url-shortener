@@ -26,12 +26,12 @@ Single model `ShortUrl` in `prisma/schema.prisma`:
 | id            | BigInt PK  | Auto-increment                 |
 | code          | String(16) | Unique; random alphanumeric, 6–16 chars |
 | longUrl       | String     | The original URL               |
-| createdByIp   | String     | Used for dedup                 |
+| createdByIp   | String     | Used for rate-limit check      |
 | clickCount    | Int        | Default 0; incremented on redirect |
 | expiresAt     | DateTime?  | Null = never expires           |
 | createdAt     | DateTime   | Default now()                  |
 
-Index on `(longUrl, createdByIp)` for dedup lookups.
+Index on `(longUrl, createdByIp)` for rate-limit lookups.
 
 ## Work Guidance
 

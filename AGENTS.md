@@ -37,7 +37,9 @@ Stack: React + Vite (frontend), Express + Prisma + PostgreSQL (backend), Nginx (
 
 ## User Preferences
 
-When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md
+When the user requests a durable behavior change, record it here or in the relevant child AGENTS.md.
+
+- **README sync (project-wide):** Any change anywhere in the project that affects API behavior, deployment setup, or configuration contracts must also update `README.md` if that change is reflected there. This applies to work owned by child AGENTS.md files as well — the DOX closeout pass is not complete until README.md is checked and updated if needed.
 
 ## Child DOX Index
 

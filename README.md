@@ -86,7 +86,7 @@ Response (`201` for a new link, `200` for a dedup hit):
 }
 ```
 
-Requests from the same IP for the same URL return the existing (non-expired) short link.
+Submitting the same URL from the same IP within one hour of a prior submission returns `429 Too Many Requests` with a `Retry-After` header. After the window clears, a new short code is always created.
 
 ### `GET /:code`
 
