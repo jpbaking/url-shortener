@@ -15,6 +15,7 @@ Nginx reverse proxy configuration. Handles two virtual hosts on port 80, with do
 - `/api/` requests on `${SHORT_DOMAIN}` are forwarded to `http://backend:3000` with path preserved.
 - All requests on `${S_DOMAIN}` are forwarded to `http://backend:3000` with no path stripping.
 - `X-Real-IP: $remote_addr` is set on every proxied request; the backend trusts this header for client IP.
+- `set_real_ip_from` trusts private RFC-1918 ranges (`10/8`, `172.16/12`, `192.168/16`) so that `$remote_addr` reflects the real client IP when cloudflared or nginx-proxy-manager sits in front. `real_ip_header X-Forwarded-For` with `real_ip_recursive on` resolves multi-hop chains.
 - Docker internal DNS `127.0.0.11 valid=10s` is used to resolve `backend` at request time, not at startup — this prevents Nginx from failing when the backend container restarts.
 - SPA fallback on `${SHORT_DOMAIN}`: any path not matching a static file is served `index.html`.
 

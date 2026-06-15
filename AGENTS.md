@@ -13,6 +13,7 @@ Stack: React + Vite (frontend), Express + Prisma + PostgreSQL (backend), Nginx (
 ## Global Contracts
 
 - `docker-compose.yml` at the root is the single source of truth for how services connect. Only Nginx (port 80) is exposed externally; backend and postgres are internal.
+- Intended upstream proxies: **cloudflared** (public internet access via Cloudflare Tunnel) and **nginx-proxy-manager** (internal LAN access). Nginx trusts RFC-1918 ranges for real-IP resolution; do not expose Nginx directly to untrusted networks.
 - Root `.env` (copy from `.env.example`) supplies five variables consumed by Compose:
   - `POSTGRES_DB` — database name
   - `POSTGRES_PASSWORD` — postgres superuser password
