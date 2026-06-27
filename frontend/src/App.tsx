@@ -255,22 +255,34 @@ export default function App() {
               <option key={u} value={u}>{u}</option>
             ))}
           </select>
+          {!showCustomId && <div className={styles.expirySpacer} aria-hidden="true" />}
           {!showCustomId ? (
             <button className={styles.customIdToggle} onClick={() => setShowCustomId(true)}>
               [ use custom ID ]
             </button>
           ) : (
-            <input
-              className={styles.customIdInput}
-              type="text"
-              placeholder="my-short-link"
-              value={customCode}
-              onChange={e => setCustomCode(e.target.value)}
-              disabled={isLoading}
-              aria-label="Custom short ID"
-              maxLength={16}
-              autoFocus
-            />
+            <div className={styles.customIdWrapper}>
+              <input
+                className={styles.customIdInput}
+                type="text"
+                placeholder="my-short-link"
+                value={customCode}
+                onChange={e => setCustomCode(e.target.value)}
+                disabled={isLoading}
+                aria-label="Custom short ID"
+                maxLength={16}
+                autoFocus
+              />
+              <button
+                className={styles.customIdClear}
+                onClick={() => { setCustomCode(''); setShowCustomId(false); }}
+                aria-label="Cancel custom ID"
+                type="button"
+                tabIndex={-1}
+              >
+                ✕
+              </button>
+            </div>
           )}
         </div>
 
