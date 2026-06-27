@@ -10,16 +10,20 @@ function uniqueUrl(suffix = '') {
 }
 
 test.describe('React SPA', () => {
-  test('loads at short.url with the correct title and tagline', async ({ page }) => {
+  test('loads at the configured short domain with the correct title and tagline', async ({ page }) => {
     await page.goto(SPA);
-    await expect(page).toHaveTitle('short.url — URL Shortener');
+    await expect(page).toHaveTitle(`${SHORT_DOMAIN} — URL Shortener`);
+    await expect(page.getByRole('link', { name: 'Go to shortener home' })).toHaveAttribute('href', '/');
     await expect(page.getByText('Paste a long URL. Get a short one.')).toBeVisible();
   });
 
-  test('serves index.html for any deep path (SPA fallback)', async ({ page }) => {
+  test('serves a branded 404 page for any deep path', async ({ page }) => {
     const response = await page.goto(`${SPA}/some/deep/path`);
     expect(response?.status()).toBe(200);
-    await expect(page).toHaveTitle('short.url — URL Shortener');
+    await expect(page).toHaveTitle(`404 — ${SHORT_DOMAIN}`);
+    await expect(page.getByRole('heading', { name: 'This short path does not exist.' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Go to shortener home' })).toHaveAttribute('href', '/');
+    await expect(page.getByRole('link', { name: 'Go to shortener', exact: true })).toHaveAttribute('href', '/');
   });
 
   test('Shorten button is disabled when the URL input is empty', async ({ page }) => {
@@ -72,6 +76,26 @@ test.describe('React SPA', () => {
     const alert = page.getByRole('alert');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText(/http/i);
+  });
+
+  test('duplicate submission shows the most recent short URL and wait message', async ({ page }) => {
+    const longUrl = uniqueUrl('/duplicate');
+    await page.goto(SPA);
+    await page.getByLabel('Long URL to shorten').fill(longUrl);
+    await page.getByLabel('Shorten URL').click();
+
+    const firstResult = page.getByRole('region', { name: 'Shortened URL' });
+    await expect(firstResult).toBeVisible();
+    const firstHref = await firstResult.getByRole('link').getAttribute('href');
+    expect(firstHref).toBeTruthy();
+
+    await page.getByLabel('Shorten URL').click();
+
+    const result = page.getByRole('region', { name: 'Shortened URL' });
+    await expect(result.getByRole('alert')).toContainText(/unique new short URL/i);
+    await expect(result.getByText('Most recent short URL')).toBeVisible();
+    await expect(result.getByRole('link')).toHaveAttribute('href', firstHref!);
+    await expect(result.getByText(/Wait about .* or until the existing short URL expires/)).toBeVisible();
   });
 
   test('expiry unit select is disabled when the expiry value is empty', async ({ page }) => {

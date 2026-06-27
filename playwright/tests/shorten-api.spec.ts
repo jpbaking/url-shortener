@@ -4,6 +4,8 @@ import { Client } from 'pg';
 const SHORT_DOMAIN = process.env.SHORT_DOMAIN ?? 'short.url';
 const S_DOMAIN     = process.env.S_DOMAIN     ?? 's.url';
 const S_SCHEME     = process.env.S_SCHEME     ?? 'http';
+const COOLDOWN_MINUTES = Number(process.env.SHORTEN_COOLDOWN_MINUTES ?? '60');
+const CLIENT_COOKIE_NAME = process.env.CLIENT_COOKIE_NAME ?? 'lw_client_id';
 const API = `${S_SCHEME}://${SHORT_DOMAIN}/api/shorten`;
 
 async function psql(sql: string): Promise<string> {
@@ -52,17 +54,69 @@ test.describe('POST /api/shorten', () => {
     expect(ts).toBeLessThan(after  + 61 * 60_000);
   });
 
-  test('429 when same IP submits the same URL within 1 hour', async ({ request }) => {
+  test('429 with the recent short URL when same browser submits the same URL within the cooldown window', async ({ request }) => {
     const longUrl = uniqueUrl('/rate-limit');
     const r1 = await request.post(API, { data: { longUrl } });
     expect(r1.status()).toBe(201);
+    const { shortUrl: shortUrl1 } = await r1.json();
 
     const r2 = await request.post(API, { data: { longUrl } });
     expect(r2.status()).toBe(429);
-    expect((await r2.json()).error).toMatch(/hour/i);
+    const body = await r2.json();
+    expect(body.error).toMatch(/unique new short URL/i);
+    expect(body.shortUrl).toBe(shortUrl1);
+    expect(body.expiresAt).toBeNull();
+    expect(body.waitLabel).toMatch(/minute|hour|day/);
+    expect(body.retryAfter).toBeGreaterThan(0);
+    expect(body.retryAfter).toBeLessThanOrEqual(COOLDOWN_MINUTES * 60);
     const retryAfter = Number(r2.headers()['retry-after']);
     expect(retryAfter).toBeGreaterThan(0);
-    expect(retryAfter).toBeLessThanOrEqual(3600);
+    expect(retryAfter).toBeLessThanOrEqual(COOLDOWN_MINUTES * 60);
+  });
+
+  test('sets an anonymous client cookie and stores only hashed identity fields', async ({ request }) => {
+    const longUrl = uniqueUrl('/anonymous-identity');
+    const response = await request.post(API, { data: { longUrl } });
+    expect(response.status()).toBe(201);
+    const { shortUrl } = await response.json();
+    const code = shortUrl.split('/').pop();
+
+    const setCookie = response.headers()['set-cookie'];
+    expect(setCookie).toContain(`${CLIENT_COOKIE_NAME}=`);
+    expect(setCookie).toMatch(/HttpOnly/i);
+    expect(setCookie).toMatch(/SameSite=Lax/i);
+
+    const stored = await psql(
+      `SELECT "clientIdHash" || ':' || "createdByIpHash" FROM "ShortUrl" WHERE code = '${code}'`
+    );
+    const [clientIdHash, createdByIpHash] = stored.split(':');
+    expect(clientIdHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(createdByIpHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored).not.toContain('127.0.0.1');
+  });
+
+  test('different client cookies can shorten the same URL independently from the same IP', async ({ playwright }) => {
+    const longUrl = uniqueUrl('/cgnat-style');
+    const clientA = await playwright.request.newContext({ baseURL: `${S_SCHEME}://${SHORT_DOMAIN}` });
+    const clientB = await playwright.request.newContext({ baseURL: `${S_SCHEME}://${SHORT_DOMAIN}` });
+
+    try {
+      const r1 = await clientA.post('/api/shorten', { data: { longUrl } });
+      expect(r1.status()).toBe(201);
+      const { shortUrl: shortUrl1 } = await r1.json();
+
+      const r2 = await clientB.post('/api/shorten', { data: { longUrl } });
+      expect(r2.status()).toBe(201);
+      const { shortUrl: shortUrl2 } = await r2.json();
+      expect(shortUrl2).not.toBe(shortUrl1);
+
+      const r3 = await clientA.post('/api/shorten', { data: { longUrl } });
+      expect(r3.status()).toBe(429);
+      expect((await r3.json()).shortUrl).toBe(shortUrl1);
+    } finally {
+      await clientA.dispose();
+      await clientB.dispose();
+    }
   });
 
   test('400 when longUrl is missing', async ({ request }) => {
@@ -191,7 +245,7 @@ test.describe('POST /api/shorten', () => {
     expect((await response.json()).error).toMatch(/expiryValue/);
   });
 
-  test('201 with a fresh code after the 1-hour cooldown window has passed', async ({ request }) => {
+  test('201 with a fresh code after the cooldown window has passed', async ({ request }) => {
     const longUrl = uniqueUrl('/rate-limit-elapsed');
 
     const r1 = await request.post(API, { data: { longUrl } });
@@ -199,7 +253,25 @@ test.describe('POST /api/shorten', () => {
     const code1 = shortUrl1.split('/').pop();
 
     // Backdate the entry so the cooldown window is considered elapsed.
-    await psql(`UPDATE "ShortUrl" SET "createdAt" = NOW() - INTERVAL '2 hours' WHERE code = '${code1}'`);
+    await psql(`UPDATE "ShortUrl" SET "createdAt" = NOW() - INTERVAL '${COOLDOWN_MINUTES + 1} minutes' WHERE code = '${code1}'`);
+
+    const r2 = await request.post(API, { data: { longUrl } });
+    expect(r2.status()).toBe(201);
+    const { shortUrl: shortUrl2 } = await r2.json();
+    expect(shortUrl2).not.toBe(shortUrl1);
+  });
+
+  test('201 with a fresh code during cooldown when the previous short URL has expired', async ({ request }) => {
+    const longUrl = uniqueUrl('/expired-during-cooldown');
+
+    const r1 = await request.post(API, {
+      data: { longUrl, expiryValue: 1, expiryUnit: 'minutes' },
+    });
+    expect(r1.status()).toBe(201);
+    const { shortUrl: shortUrl1 } = await r1.json();
+    const code1 = shortUrl1.split('/').pop();
+
+    await psql(`UPDATE "ShortUrl" SET "expiresAt" = NOW() - INTERVAL '1 minute' WHERE code = '${code1}'`);
 
     const r2 = await request.post(API, { data: { longUrl } });
     expect(r2.status()).toBe(201);
