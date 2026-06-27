@@ -34,6 +34,7 @@ services:
       CLIENT_ID_HASH_SECRET: ${CLIENT_ID_HASH_SECRET}
       CLIENT_COOKIE_NAME: ${CLIENT_COOKIE_NAME:-lw_client_id}
       CLIENT_COOKIE_MAX_AGE_DAYS: ${CLIENT_COOKIE_MAX_AGE_DAYS:-365}
+      MAX_LINK_EXPIRY_MONTHS: ${MAX_LINK_EXPIRY_MONTHS:-12}
       PORT: 3000
     depends_on:
       postgres:
@@ -71,6 +72,7 @@ services:
       CLIENT_ID_HASH_SECRET: ${CLIENT_ID_HASH_SECRET}
       CLIENT_COOKIE_NAME: ${CLIENT_COOKIE_NAME:-lw_client_id}
       CLIENT_COOKIE_MAX_AGE_DAYS: ${CLIENT_COOKIE_MAX_AGE_DAYS:-365}
+      MAX_LINK_EXPIRY_MONTHS: ${MAX_LINK_EXPIRY_MONTHS:-12}
     volumes:
       - ./playwright/playwright-report:/app/playwright-report
       - ./playwright/test-results:/app/test-results

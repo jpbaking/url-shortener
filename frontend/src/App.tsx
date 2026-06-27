@@ -5,6 +5,14 @@ type ExpiryUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
 
 const EXPIRY_UNITS: ExpiryUnit[] = ['minutes', 'hours', 'days', 'weeks', 'months'];
 
+const UNIT_TO_MS: Record<ExpiryUnit, number> = {
+  minutes: 60 * 1000,
+  hours:   60 * 60 * 1000,
+  days:    24 * 60 * 60 * 1000,
+  weeks:   7 * 24 * 60 * 60 * 1000,
+  months:  30 * 24 * 60 * 60 * 1000,
+};
+
 type State =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -40,18 +48,33 @@ function BrandLink({ domain }: { domain: string }) {
 }
 
 export default function App() {
-  const [longUrl, setLongUrl]         = useState('');
-  const [expiryValue, setExpiryValue] = useState('');
-  const [expiryUnit, setExpiryUnit]   = useState<ExpiryUnit>('days');
-  const [state, setState]             = useState<State>({ status: 'idle' });
-  const [copied, setCopied]           = useState(false);
-  const inputRef                      = useRef<HTMLInputElement>(null);
+  const [longUrl, setLongUrl]               = useState('');
+  const [expiryValue, setExpiryValue]       = useState('');
+  const [expiryUnit, setExpiryUnit]         = useState<ExpiryUnit>('days');
+  const [state, setState]                   = useState<State>({ status: 'idle' });
+  const [copied, setCopied]                 = useState(false);
+  const [maxExpiryMonths, setMaxExpiryMonths] = useState(12);
+  const inputRef                            = useRef<HTMLInputElement>(null);
 
   const domain = window.location.hostname;
+
+  const expiryTooLong = expiryValue.trim() !== '' &&
+    Number(expiryValue) * UNIT_TO_MS[expiryUnit] > maxExpiryMonths * UNIT_TO_MS.months;
 
   useEffect(() => {
     document.title = isNotFoundPath() ? `404 — ${domain}` : `${domain} — URL Shortener`;
   }, [domain]);
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then(r => r.json())
+      .then((d: { maxExpiryMonths?: number }) => {
+        if (typeof d.maxExpiryMonths === 'number' && d.maxExpiryMonths > 0) {
+          setMaxExpiryMonths(d.maxExpiryMonths);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function shorten() {
     const trimmed = longUrl.trim();
@@ -157,7 +180,7 @@ export default function App() {
         </section>
 
         <footer className={styles.footer}>
-          <span>Links without an expiry date never expire.</span>
+          <span>All short links expire. Omit expiry to use the configured maximum.</span>
         </footer>
       </main>
     );
@@ -191,7 +214,7 @@ export default function App() {
           <button
             className={styles.button}
             onClick={shorten}
-            disabled={isLoading || !longUrl.trim()}
+            disabled={isLoading || !longUrl.trim() || expiryTooLong}
             aria-label="Shorten URL"
           >
             {isLoading ? <span className={styles.spinner} aria-hidden="true" /> : 'Shorten'}
@@ -204,7 +227,7 @@ export default function App() {
             className={styles.expiryInput}
             type="number"
             min="1"
-            placeholder="never"
+            placeholder="none"
             value={expiryValue}
             onChange={e => setExpiryValue(e.target.value)}
             disabled={isLoading}
@@ -222,6 +245,12 @@ export default function App() {
             ))}
           </select>
         </div>
+
+        {expiryTooLong && (
+          <p className={styles.error} role="alert">
+            Maximum expiry is {maxExpiryMonths} month{maxExpiryMonths === 1 ? '' : 's'}.
+          </p>
+        )}
 
         {state.status === 'error' && (
           <p className={styles.error} role="alert">{state.message}</p>
@@ -272,7 +301,7 @@ export default function App() {
       </section>
 
       <footer className={styles.footer}>
-        <span>Links without an expiry date never expire.</span>
+        <span>All short links expire. Omit expiry to use the configured maximum.</span>
       </footer>
     </main>
   );

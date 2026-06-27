@@ -11,6 +11,11 @@ const meshWhiteSvg = meshBlueSvg
   .replace(/#12279E/g, '#FFFFFF')
   .replace(/#D9821F/g, '#FFFFFF');
 
+function getMaxExpiryMonths(): number {
+  const n = Number(process.env.MAX_LINK_EXPIRY_MONTHS);
+  return Number.isInteger(n) && n > 0 ? n : 12;
+}
+
 function svgDataUri(svg: string): string {
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
@@ -28,6 +33,8 @@ function statusPage(status: number, kicker: string, title: string, message: stri
   const meshBlue = svgDataUri(meshBlueSvg);
   const meshWhite = svgDataUri(meshWhiteSvg);
   const favicon = svgDataUri(logoMarkSvg);
+  const maxMonths = getMaxExpiryMonths();
+  const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
 
   return `<!doctype html>
 <html lang="en">
@@ -243,7 +250,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
         <p class="message">${htmlEscape(message)}</p>
       </section>
 
-      <footer>Links without an expiry date never expire.</footer>
+      <footer>${footerText}</footer>
     </main>
   </body>
 </html>`;

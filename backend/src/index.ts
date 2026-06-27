@@ -10,6 +10,11 @@ app.use(express.json());
 // API routes
 app.use('/api/shorten', shortenRouter);
 
+app.get('/api/config', (_req, res) => {
+  const n = Number(process.env.MAX_LINK_EXPIRY_MONTHS);
+  res.json({ maxExpiryMonths: Number.isInteger(n) && n > 0 ? n : 12 });
+});
+
 // Redirect route — must come after all explicit routes
 app.use('/', redirectRouter);
 

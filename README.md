@@ -62,6 +62,7 @@ The root `.env` (copied from `.env.example`) supplies variables consumed by Comp
 | `CLIENT_ID_HASH_SECRET`      | Stable HMAC secret for anonymizing anonymous client cookie IDs before storage   | —              |
 | `CLIENT_COOKIE_NAME`         | Anonymous client ID cookie name                                                | `lw_client_id` |
 | `CLIENT_COOKIE_MAX_AGE_DAYS` | Anonymous client ID cookie lifetime in days                                    | `365`          |
+| `MAX_LINK_EXPIRY_MONTHS`     | Maximum short link lifetime in months; links with no custom expiry are capped here | `12`       |
 
 Compose derives `REDIRECT_DOMAIN` as `${S_SCHEME}://${S_DOMAIN}` and injects it, along with `DATABASE_URL`, into the backend. Data persists in the `pg_data` named volume — removing it drops all shortened URLs.
 
@@ -80,7 +81,7 @@ Request body:
 ```
 
 - `longUrl` (required) — must start with `http://` or `https://`, max 2048 characters.
-- `expiryValue` / `expiryUnit` (optional) — omit for a link that never expires. Units: `minutes`, `hours`, `days`, `weeks`, `months`.
+- `expiryValue` / `expiryUnit` (optional) — omit to use the configured maximum lifetime (`MAX_LINK_EXPIRY_MONTHS`). Explicit expiry is capped at the same maximum. Units: `minutes`, `hours`, `days`, `weeks`, `months`.
 
 Response (`201` for a new link):
 
@@ -97,7 +98,7 @@ Submitting the same URL from the same browser within `SHORTEN_COOLDOWN_MINUTES` 
 {
   "error": "This URL was already shortened recently in this browser. Use the existing short URL below, or wait about 1 hour to generate a unique new short URL. If the existing short URL expires first, you can generate a new one then.",
   "shortUrl": "http://s.url/aB3x9Z",
-  "expiresAt": null,
+  "expiresAt": "2027-06-22T12:00:00.000Z",
   "retryAfter": 3598,
   "waitLabel": "1 hour"
 }

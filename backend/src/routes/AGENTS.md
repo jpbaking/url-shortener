@@ -12,9 +12,9 @@ Express route handlers for the two core operations: shortening a URL and resolvi
 ### shorten.ts
 
 - Accepts JSON body: `{ longUrl: string, expiryValue?: number, expiryUnit?: ExpiryUnit }`.
-- Returns `{ shortUrl: string, expiresAt: string | null }` with status `201` on success. There is no dedup path — every accepted submission creates a new code.
+- Returns `{ shortUrl: string, expiresAt: string }` with status `201` on success. `expiresAt` is always a non-null ISO string: omitting the expiry field uses `MAX_LINK_EXPIRY_MONTHS` as the default; explicit expiry is capped at the same maximum. There is no dedup path — every accepted submission creates a new code.
 - Creation attempts a direct insert with a random 6-char code, retrying with incrementally longer codes (up to 16) on `P2002` collisions.
-- Rate limit: same anonymous browser-scoped client + same `longUrl` within `SHORTEN_COOLDOWN_MINUTES` minutes of a non-expired prior entry → 429 with `Retry-After` header, the most recent `shortUrl`, nullable `expiresAt`, numeric `retryAfter`, and human `waitLabel`. Expired prior entries are ignored and allow a fresh code.
+- Rate limit: same anonymous browser-scoped client + same `longUrl` within `SHORTEN_COOLDOWN_MINUTES` minutes of a non-expired prior entry → 429 with `Retry-After` header, the most recent `shortUrl`, nullable `expiresAt` (null only for legacy rows predating the max-expiry policy), numeric `retryAfter`, and human `waitLabel`. Expired prior entries are ignored and allow a fresh code.
 - Client identity is an `HttpOnly`, `SameSite=Lax` cookie generated on first shorten request; only its HMAC-SHA-256 digest is stored. Client IP is taken from `X-Real-IP` (set by Nginx) or socket fallback, HMAC-hashed with `IP_HASH_SECRET`, and stored only as `createdByIpHash`.
 
 ### redirect.ts

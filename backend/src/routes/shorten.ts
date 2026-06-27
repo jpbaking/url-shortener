@@ -91,6 +91,17 @@ function getClientIdentity(req: Request, res: Response): ClientIdentity {
   };
 }
 
+function getMaxExpiryMonths(): number {
+  const raw = process.env.MAX_LINK_EXPIRY_MONTHS;
+  if (raw === undefined || raw === '') return 12;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    console.warn(`Invalid MAX_LINK_EXPIRY_MONTHS="${raw}". Falling back to 12.`);
+    return 12;
+  }
+  return parsed;
+}
+
 function getCooldownMinutes(): number {
   const raw = process.env.SHORTEN_COOLDOWN_MINUTES;
   if (raw === undefined || raw === '') return 60;
@@ -125,12 +136,14 @@ function isValidUrl(input: string): boolean {
 }
 
 type ExpiryResult =
-  | { ok: true; expiresAt: Date | null }
+  | { ok: true; expiresAt: Date }
   | { ok: false; error: string };
 
 function computeExpiresAt(value: unknown, unit: unknown): ExpiryResult {
+  const maxExpiresAt = new Date(Date.now() + getMaxExpiryMonths() * UNIT_TO_MS.months);
+
   if (value === undefined || value === null || value === '') {
-    return { ok: true, expiresAt: null };
+    return { ok: true, expiresAt: maxExpiresAt };
   }
 
   const num = Number(value);
@@ -142,7 +155,11 @@ function computeExpiresAt(value: unknown, unit: unknown): ExpiryResult {
     return { ok: false, error: `expiryUnit must be one of: ${Object.keys(UNIT_TO_MS).join(', ')}.` };
   }
 
-  return { ok: true, expiresAt: new Date(Date.now() + num * UNIT_TO_MS[unit as ExpiryUnit]) };
+  const requested = new Date(Date.now() + num * UNIT_TO_MS[unit as ExpiryUnit]);
+  if (requested > maxExpiresAt) {
+    return { ok: false, error: `Expiry cannot exceed ${getMaxExpiryMonths()} months.` };
+  }
+  return { ok: true, expiresAt: requested };
 }
 
 // Extract the real client IP, trusting Nginx's X-Real-IP header.
@@ -238,7 +255,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({
       shortUrl: `${process.env.REDIRECT_DOMAIN}/${entry.code}`,
-      expiresAt: entry.expiresAt?.toISOString() ?? null,
+      expiresAt: entry.expiresAt!.toISOString(),
     });
   } catch (error) {
     console.error('Error shortening URL:', error);
