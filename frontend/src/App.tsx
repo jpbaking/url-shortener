@@ -255,15 +255,11 @@ export default function App() {
               <option key={u} value={u}>{u}</option>
             ))}
           </select>
-        </div>
-
-        {!showCustomId ? (
-          <button className={styles.customIdToggle} onClick={() => setShowCustomId(true)}>
-            [ use custom ID ]
-          </button>
-        ) : (
-          <div className={styles.customIdRow}>
-            <span className={styles.expiryLabel}>Custom ID</span>
+          {!showCustomId ? (
+            <button className={styles.customIdToggle} onClick={() => setShowCustomId(true)}>
+              [ use custom ID ]
+            </button>
+          ) : (
             <input
               className={styles.customIdInput}
               type="text"
@@ -275,8 +271,8 @@ export default function App() {
               maxLength={16}
               autoFocus
             />
-          </div>
-        )}
+          )}
+        </div>
 
         {expiryTooLong && (
           <p className={styles.error} role="alert">
