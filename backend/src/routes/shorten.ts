@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import crypto from 'crypto';
 import { generateCode } from '../base62';
 
 const router = Router();
@@ -14,6 +15,105 @@ const UNIT_TO_MS: Record<ExpiryUnit, number> = {
   weeks:   7 * 24 * 60 * 60 * 1000,
   months:  30 * 24 * 60 * 60 * 1000,
 };
+
+const DEFAULT_COOKIE_NAME = 'lw_client_id';
+const DEFAULT_COOKIE_MAX_AGE_DAYS = 365;
+
+type ClientIdentity = {
+  clientIdHash: string;
+  createdByIpHash: string;
+};
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+  return value;
+}
+
+function hmacHex(secret: string, value: string): string {
+  return crypto.createHmac('sha256', secret).update(value).digest('hex');
+}
+
+function getCookieName(): string {
+  return process.env.CLIENT_COOKIE_NAME || DEFAULT_COOKIE_NAME;
+}
+
+function getCookieMaxAgeDays(): number {
+  const raw = process.env.CLIENT_COOKIE_MAX_AGE_DAYS;
+  if (raw === undefined || raw === '') return DEFAULT_COOKIE_MAX_AGE_DAYS;
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    console.warn(`Invalid CLIENT_COOKIE_MAX_AGE_DAYS="${raw}". Falling back to ${DEFAULT_COOKIE_MAX_AGE_DAYS}.`);
+    return DEFAULT_COOKIE_MAX_AGE_DAYS;
+  }
+
+  return parsed;
+}
+
+function parseCookies(header: string | undefined): Record<string, string> {
+  if (!header) return {};
+
+  return header.split(';').reduce<Record<string, string>>((cookies, part) => {
+    const [name, ...valueParts] = part.trim().split('=');
+    if (!name || valueParts.length === 0) return cookies;
+    cookies[name] = decodeURIComponent(valueParts.join('='));
+    return cookies;
+  }, {});
+}
+
+function isValidClientId(value: string | undefined): value is string {
+  return typeof value === 'string' && /^[a-f0-9]{32}$/.test(value);
+}
+
+function getOrSetClientId(req: Request, res: Response): string {
+  const cookieName = getCookieName();
+  const existing = parseCookies(req.headers.cookie)[cookieName];
+  if (isValidClientId(existing)) return existing;
+
+  const clientId = crypto.randomBytes(16).toString('hex');
+  res.cookie(cookieName, clientId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: getCookieMaxAgeDays() * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+  return clientId;
+}
+
+function getClientIdentity(req: Request, res: Response): ClientIdentity {
+  const clientId = getOrSetClientId(req, res);
+  return {
+    clientIdHash: hmacHex(requiredEnv('CLIENT_ID_HASH_SECRET'), clientId),
+    createdByIpHash: hmacHex(requiredEnv('IP_HASH_SECRET'), getClientIp(req)),
+  };
+}
+
+function getCooldownMinutes(): number {
+  const raw = process.env.SHORTEN_COOLDOWN_MINUTES;
+  if (raw === undefined || raw === '') return 60;
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    console.warn(`Invalid SHORTEN_COOLDOWN_MINUTES="${raw}". Falling back to 60.`);
+    return 60;
+  }
+
+  return parsed;
+}
+
+function formatDuration(seconds: number): string {
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+
+  const hours = Math.ceil(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`;
+
+  const days = Math.ceil(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
 
 function isValidUrl(input: string): boolean {
   try {
@@ -84,19 +184,37 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
   const { expiresAt } = expiryResult;
-  const createdByIp = getClientIp(req);
-
   try {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const { clientIdHash, createdByIpHash } = getClientIdentity(req, res);
+    const cooldownMinutes = getCooldownMinutes();
+    const cooldownMs = cooldownMinutes * 60 * 1000;
+    const now = new Date();
+    const cooldownStart = new Date(Date.now() - cooldownMs);
     const recent = await prisma.shortUrl.findFirst({
-      where: { longUrl, createdByIp, createdAt: { gt: oneHourAgo } },
-      select: { createdAt: true },
+      where: {
+        longUrl,
+        clientIdHash,
+        createdAt: { gt: cooldownStart },
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: now } },
+        ],
+      },
+      orderBy: { createdAt: 'desc' },
+      select: { code: true, createdAt: true, expiresAt: true },
     });
     if (recent) {
-      const retryAfter = Math.ceil((recent.createdAt.getTime() + 60 * 60 * 1000 - Date.now()) / 1000);
+      const retryAfter = Math.max(1, Math.ceil((recent.createdAt.getTime() + cooldownMs - Date.now()) / 1000));
+      const waitLabel = formatDuration(retryAfter);
       res.status(429)
         .set('Retry-After', String(retryAfter))
-        .json({ error: 'This URL was already shortened by your IP in the last hour. Please try again later.' });
+        .json({
+          error: `This URL was already shortened recently in this browser. Use the existing short URL below, or wait about ${waitLabel} to generate a unique new short URL. If the existing short URL expires first, you can generate a new one then.`,
+          shortUrl: `${process.env.REDIRECT_DOMAIN}/${recent.code}`,
+          expiresAt: recent.expiresAt?.toISOString() ?? null,
+          retryAfter,
+          waitLabel,
+        });
       return;
     }
 
@@ -104,7 +222,7 @@ router.post('/', async (req: Request, res: Response) => {
     for (let len = 6; len <= 16; len++) {
       try {
         entry = await prisma.shortUrl.create({
-          data: { code: generateCode(len), longUrl, createdByIp, expiresAt },
+          data: { code: generateCode(len), longUrl, clientIdHash, createdByIpHash, expiresAt },
         });
         break;
       } catch (err) {

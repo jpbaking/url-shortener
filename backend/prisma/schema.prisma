@@ -9,13 +9,15 @@ generator client {
 }
 
 model ShortUrl {
-  id          BigInt    @id @default(autoincrement())
-  code        String    @unique @db.VarChar(16)
-  longUrl     String
-  createdByIp String
-  clickCount  Int       @default(0)
-  expiresAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id              BigInt    @id @default(autoincrement())
+  code            String    @unique @db.VarChar(16)
+  longUrl         String
+  clientIdHash    String    @db.Char(64)
+  createdByIpHash String    @db.Char(64)
+  clickCount      Int       @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
 
-  @@index([longUrl, createdByIp])
+  @@index([longUrl, clientIdHash])
+  @@index([createdByIpHash])
 }

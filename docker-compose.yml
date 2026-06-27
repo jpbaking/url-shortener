@@ -29,6 +29,11 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIRECT_DOMAIN: ${S_SCHEME:-http}://${S_DOMAIN:-s.url}
+      SHORTEN_COOLDOWN_MINUTES: ${SHORTEN_COOLDOWN_MINUTES:-60}
+      IP_HASH_SECRET: ${IP_HASH_SECRET}
+      CLIENT_ID_HASH_SECRET: ${CLIENT_ID_HASH_SECRET}
+      CLIENT_COOKIE_NAME: ${CLIENT_COOKIE_NAME:-lw_client_id}
+      CLIENT_COOKIE_MAX_AGE_DAYS: ${CLIENT_COOKIE_MAX_AGE_DAYS:-365}
       PORT: 3000
     depends_on:
       postgres:
@@ -61,6 +66,11 @@ services:
       SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
       S_DOMAIN: ${S_DOMAIN:-s.url}
       S_SCHEME: ${S_SCHEME:-http}
+      SHORTEN_COOLDOWN_MINUTES: ${SHORTEN_COOLDOWN_MINUTES:-60}
+      IP_HASH_SECRET: ${IP_HASH_SECRET}
+      CLIENT_ID_HASH_SECRET: ${CLIENT_ID_HASH_SECRET}
+      CLIENT_COOKIE_NAME: ${CLIENT_COOKIE_NAME:-lw_client_id}
+      CLIENT_COOKIE_MAX_AGE_DAYS: ${CLIENT_COOKIE_MAX_AGE_DAYS:-365}
     volumes:
       - ./playwright/playwright-report:/app/playwright-report
       - ./playwright/test-results:/app/test-results
