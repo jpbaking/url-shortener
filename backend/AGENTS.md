@@ -9,13 +9,18 @@ All API behavior: short code generation, expiry logic, dedup, click counting, an
 ## Local Contracts
 
 - Short codes are random alphanumeric strings generated from a 62-character alphabet (`src/base62.ts` → `generateCode(length)`). Minimum length is 6, maximum is 16. Creation attempts a direct insert at length 6; on each `P2002` unique-constraint collision the length increments by 1 and retries up to 16.
+- **Custom codes:** the caller may supply a `customCode` (3–16 chars, `[a-zA-Z0-9][a-zA-Z0-9_-]{1,14}[a-zA-Z0-9]`). Before inserting, any existing record with that code whose `expiresAt ≤ now` is deleted (reclaim). If the slot is still occupied by an active link, returns 409. Custom codes bypass the cooldown/dedup check.
 - Every accepted submission always creates a new short code, even if another browser or device behind the same IP submits the same `longUrl`.
-- Rate limit: if the same browser-scoped client submits the same `longUrl` within `SHORTEN_COOLDOWN_MINUTES` of a prior non-expired submission, the request is rejected with 429, a `Retry-After` header (seconds until the window clears), and the most recent short URL for that client + URL. Expired prior links do not block new short-code creation.
-- Redirect failures render branded HTML status pages: invalid code = 400, missing code = 404, expired code = 410.
+- Rate limit: if the same browser-scoped client submits the same `longUrl` within `SHORTEN_COOLDOWN_MINUTES` of a prior non-expired submission, the request is rejected with 429, a `Retry-After` header (seconds until the window clears), and the most recent short URL for that client + URL. Expired prior links do not block new short-code creation. Rate limit does not apply to custom-code requests.
+- Redirect resolution returns a `200` branded HTML landing page (not a 302). All failure outcomes also render branded HTML pages: invalid code = 400, missing code = 404, expired code = 410.
+- `GET /api/config` returns `{ maxExpiryMonths: number }` from `MAX_LINK_EXPIRY_MONTHS` (default 12).
 - `longUrl` must start with `http://` or `https://` and be ≤ 2048 characters.
-- Expiry units: `minutes`, `hours`, `days`, `weeks`, `months`. Omitted or empty `expiryValue` = no expiry.
+- Expiry units: `minutes`, `hours`, `days`, `weeks`, `months`. Omitting `expiryValue` assigns the maximum lifetime (`MAX_LINK_EXPIRY_MONTHS`). Explicit expiry exceeding the maximum is rejected with 400.
 - `REDIRECT_DOMAIN` env var sets the domain prefix in the returned short URL (no trailing slash).
+- `SHORT_DOMAIN` env var sets the wordmark shown on server-rendered HTML pages (status pages and landing page).
+- `S_SCHEME` env var sets the scheme used when constructing the home URL on server-rendered pages.
 - `SHORTEN_COOLDOWN_MINUTES` env var sets the duplicate-submission cooldown window in minutes (default 60; invalid values fall back to 60).
+- `MAX_LINK_EXPIRY_MONTHS` env var caps the maximum link lifetime in months (default 12; invalid values fall back to 12).
 - `IP_HASH_SECRET` and `CLIENT_ID_HASH_SECRET` env vars are required stable HMAC secrets. Raw IPs and cookie IDs must never be stored.
 - `CLIENT_COOKIE_NAME` and `CLIENT_COOKIE_MAX_AGE_DAYS` configure the anonymous browser-scoped client ID cookie.
 - `DATABASE_URL` env var is the Prisma PostgreSQL DSN.

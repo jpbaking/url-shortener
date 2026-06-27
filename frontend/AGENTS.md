@@ -9,7 +9,9 @@ All UI code lives in `src/`. Static brand assets live in `public/design/assets/`
 ## Local Contracts
 
 - API calls go to `/api/shorten` (relative path). Nginx proxies this to the backend in production; point to the backend directly in local dev if needed.
-- Expiry is optional: `expiryValue` is only included in the request body when the field is non-empty.
+- On mount, the app fetches `GET /api/config` to retrieve `maxExpiryMonths` and enforces it client-side; falls back to 12 if the request fails.
+- Expiry is optional: `expiryValue` is only included in the request body when the field is non-empty. The Shorten button is disabled if the entered expiry exceeds `maxExpiryMonths`.
+- Custom short code: hidden by default behind a `[ use custom ID ]` toggle in the expiry row. Clicking the toggle reveals a text input (3–16 chars, letters/numbers/hyphens/underscores, must start and end with a letter or number). A circled ✕ button dismisses the input and clears the value. `customCode` is included in the request body only when non-empty. The Shorten button is disabled if the value fails the format check.
 - UI state machine: `idle → loading → success | duplicate | error`. The `duplicate` state shows the most recent short URL returned by a 429 response plus the wait time for generating a unique new code. The "Shorten another" button resets to `idle`.
 - "Copied!" label auto-clears after 2 seconds.
 - Enter key on the URL input triggers shortening.

@@ -2,7 +2,7 @@
 
 ## Project
 
-Self-hosted URL shortener. Users paste a long URL into the web UI and receive a short link. Clicking the short link issues a 302 redirect to the original URL.
+Self-hosted URL shortener. Users paste a long URL into the web UI and receive a short link. Clicking the short link opens a branded landing page showing the destination domain and a disclaimer; the user clicks Proceed to navigate or Go Back to cancel.
 
 Two domains, one backend:
 - `short.url` — React SPA where users shorten URLs.
