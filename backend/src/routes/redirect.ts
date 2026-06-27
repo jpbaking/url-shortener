@@ -29,24 +29,8 @@ function htmlEscape(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function statusPage(status: number, kicker: string, title: string, message: string): string {
-  const meshBlue = svgDataUri(meshBlueSvg);
-  const meshWhite = svgDataUri(meshWhiteSvg);
-  const favicon = svgDataUri(logoMarkSvg);
-  const maxMonths = getMaxExpiryMonths();
-  const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
-
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${status} — ${htmlEscape(title)}</title>
-    <link rel="icon" href="${favicon}" type="image/svg+xml" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-    <style>
+function commonCss(meshBlue: string, meshWhite: string): string {
+  return `
       :root {
         --brand-blue: #12279E;
         --brand-blue-deep: #0B1660;
@@ -215,23 +199,39 @@ function statusPage(status: number, kicker: string, title: string, message: stri
       }
 
       @media (max-width: 768px) {
-        main {
-          gap: 26px;
-          padding-top: 26px;
-        }
+        main { gap: 26px; padding-top: 26px; }
         main::before { height: 340px; }
         .card { padding: 26px; }
       }
 
       @media (max-width: 480px) {
-        main {
-          padding-right: 12px;
-          padding-left: 12px;
-        }
+        main { padding-right: 12px; padding-left: 12px; }
         main::before { height: 340px; }
         .card { padding: 18px; }
       }
-    </style>
+  `;
+}
+
+const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />`;
+
+function statusPage(status: number, kicker: string, title: string, message: string): string {
+  const meshBlue = svgDataUri(meshBlueSvg);
+  const meshWhite = svgDataUri(meshWhiteSvg);
+  const favicon = svgDataUri(logoMarkSvg);
+  const maxMonths = getMaxExpiryMonths();
+  const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${status} — ${htmlEscape(title)}</title>
+    <link rel="icon" href="${favicon}" type="image/svg+xml" />
+    ${FONTS}
+    <style>${commonCss(meshBlue, meshWhite)}</style>
   </head>
   <body>
     <main>
@@ -256,6 +256,137 @@ function statusPage(status: number, kicker: string, title: string, message: stri
 </html>`;
 }
 
+function redirectLandingPage(code: string, target: string): string {
+  const meshBlue = svgDataUri(meshBlueSvg);
+  const meshWhite = svgDataUri(meshWhiteSvg);
+  const favicon = svgDataUri(logoMarkSvg);
+  const maxMonths = getMaxExpiryMonths();
+  const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
+  const sDomain = htmlEscape(process.env.S_DOMAIN ?? 'this service');
+
+  let displayDomain: string;
+  try {
+    displayDomain = new URL(target).hostname;
+  } catch {
+    displayDomain = target;
+  }
+  const safeTarget = htmlEscape(target);
+  const safeDisplayDomain = htmlEscape(displayDomain);
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redirecting — ${htmlEscape(code)}</title>
+    <link rel="icon" href="${favicon}" type="image/svg+xml" />
+    ${FONTS}
+    <style>
+      ${commonCss(meshBlue, meshWhite)}
+
+      .dest-domain {
+        margin: 0;
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: clamp(18px, 3vw, 24px);
+        font-weight: 600;
+        word-break: break-all;
+      }
+
+      .dest-url {
+        margin: 0;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        overflow-wrap: anywhere;
+        word-break: break-all;
+      }
+
+      .disclaimer {
+        padding: 16px 20px;
+        background: #FFF8EE;
+        border-left: 3px solid var(--accent-amber);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .disclaimer p { margin: 0; color: #6B3F0A; }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding-top: 6px;
+      }
+
+      .proceed {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 24px;
+        color: #FFFFFF;
+        background: var(--brand-blue);
+        border: 1px solid var(--brand-blue);
+        border-radius: 6px;
+        font-family: var(--font-sans);
+        font-size: 15px;
+        font-weight: 600;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: background-color 0.15s ease, border-color 0.15s ease;
+      }
+
+      .proceed:hover { background: var(--brand-blue-deep); border-color: var(--brand-blue-deep); }
+
+      .back {
+        padding: 0;
+        color: var(--muted);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-family: var(--font-sans);
+        font-size: 14px;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .back:hover { color: var(--ink); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero" aria-labelledby="page-title">
+        <div class="brand">
+          <img class="mark" src="${favicon}" alt="" />
+          <span class="wordmark">${sDomain}</span>
+        </div>
+        <p class="kicker">External link</p>
+        <h1 id="page-title">Review before you proceed</h1>
+        <p class="lead">You are about to leave ${sDomain} and visit a third-party website.</p>
+      </section>
+
+      <section class="card" aria-label="Redirect destination">
+        <span class="code">Destination</span>
+        <p class="dest-domain">${safeDisplayDomain}</p>
+        <p class="dest-url">${safeTarget}</p>
+
+        <div class="disclaimer" role="note">
+          <p><strong>${sDomain}</strong> and its operators are not affiliated with this destination and accept no responsibility for its content, accuracy, or safety. Only proceed if you trust the source of this link.</p>
+        </div>
+
+        <div class="actions">
+          <a class="proceed" href="${safeTarget}" rel="noopener noreferrer">Proceed to destination</a>
+          <button class="back" onclick="history.back()">Go back</button>
+        </div>
+      </section>
+
+      <footer>${footerText}</footer>
+    </main>
+  </body>
+</html>`;
+}
+
 function sendStatusPage(res: Response, status: number, kicker: string, title: string, message: string): void {
   res
     .status(status)
@@ -264,7 +395,7 @@ function sendStatusPage(res: Response, status: number, kicker: string, title: st
 }
 
 // GET /:code
-// Looks up the short code, checks expiry, increments click count, issues 302.
+// Looks up the short code, checks expiry, increments click count, shows redirect landing page.
 router.get('/:code', async (req: Request, res: Response) => {
   const { code } = req.params;
 
@@ -287,37 +418,16 @@ router.get('/:code', async (req: Request, res: Response) => {
     }
 
     // Fire-and-forget click count increment — don't let a failed update
-    // block the redirect, which is the user-facing critical path.
+    // block the landing page, which is the user-facing critical path.
     prisma.shortUrl.update({
       where: { id: entry.id },
       data: { clickCount: { increment: 1 } },
     }).catch((err: unknown) => console.error('Failed to increment click count:', err));
 
-    const target    = entry.longUrl;
-    const safeTarget = htmlEscape(target);
-    // Prevent </script> inside a JSON string from closing the outer <script> block.
-    const safeJs    = JSON.stringify(target).replace(/<\/script/gi, '<\\/script');
-
-    // Primary: HTTP 302. The Location header is all a compliant browser needs.
-    // Fallback body: <meta refresh> handles browsers that ignore Location,
-    // and the JS redirect handles anything that executes scripts but not meta tags.
-    // The visible <a> is the last resort for everything else.
     res
-      .status(302)
-      .setHeader('Location', target)
+      .status(200)
       .setHeader('Content-Type', 'text/html; charset=utf-8')
-      .send(`<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="refresh" content="0; url=${safeTarget}" />
-    <title>Redirecting…</title>
-    <script>window.location.replace(${safeJs});</script>
-  </head>
-  <body>
-    <p>Redirecting… <a href="${safeTarget}">Click here if you are not redirected.</a></p>
-  </body>
-</html>`);
+      .send(redirectLandingPage(code, entry.longUrl));
   } catch (error) {
     console.error('Error resolving short code:', error);
     sendStatusPage(res, 500, 'Error', 'The redirect could not be resolved.', 'Try again in a moment.');
