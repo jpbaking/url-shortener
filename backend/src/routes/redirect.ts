@@ -268,8 +268,8 @@ function sendStatusPage(res: Response, status: number, kicker: string, title: st
 router.get('/:code', async (req: Request, res: Response) => {
   const { code } = req.params;
 
-  if (!code || !/^[a-zA-Z0-9]+$/.test(code)) {
-    sendStatusPage(res, 400, 'Invalid code', 'This short code is not valid.', 'Short codes may only contain letters and numbers.');
+  if (!code || !/^[a-zA-Z0-9]([a-zA-Z0-9_-]*[a-zA-Z0-9])?$/.test(code)) {
+    sendStatusPage(res, 400, 'Invalid code', 'This short code is not valid.', 'Short codes may only contain letters, numbers, hyphens, and underscores.');
     return;
   }
 

@@ -13,6 +13,8 @@ const UNIT_TO_MS: Record<ExpiryUnit, number> = {
   months:  30 * 24 * 60 * 60 * 1000,
 };
 
+const CUSTOM_CODE_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,14}[a-zA-Z0-9]$/;
+
 type State =
   | { status: 'idle' }
   | { status: 'loading' }
@@ -51,6 +53,7 @@ export default function App() {
   const [longUrl, setLongUrl]               = useState('');
   const [expiryValue, setExpiryValue]       = useState('');
   const [expiryUnit, setExpiryUnit]         = useState<ExpiryUnit>('days');
+  const [customCode, setCustomCode]         = useState('');
   const [state, setState]                   = useState<State>({ status: 'idle' });
   const [copied, setCopied]                 = useState(false);
   const [maxExpiryMonths, setMaxExpiryMonths] = useState(12);
@@ -60,6 +63,8 @@ export default function App() {
 
   const expiryTooLong = expiryValue.trim() !== '' &&
     Number(expiryValue) * UNIT_TO_MS[expiryUnit] > maxExpiryMonths * UNIT_TO_MS.months;
+
+  const customCodeInvalid = customCode.trim() !== '' && !CUSTOM_CODE_RE.test(customCode.trim());
 
   useEffect(() => {
     document.title = isNotFoundPath() ? `404 — ${domain}` : `${domain} — URL Shortener`;
@@ -87,6 +92,9 @@ export default function App() {
     if (expiryValue.trim() !== '') {
       body.expiryValue = Number(expiryValue);
       body.expiryUnit  = expiryUnit;
+    }
+    if (customCode.trim() !== '') {
+      body.customCode = customCode.trim();
     }
 
     try {
@@ -150,6 +158,7 @@ export default function App() {
     setLongUrl('');
     setExpiryValue('');
     setExpiryUnit('days');
+    setCustomCode('');
     setState({ status: 'idle' });
     setCopied(false);
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -214,7 +223,7 @@ export default function App() {
           <button
             className={styles.button}
             onClick={shorten}
-            disabled={isLoading || !longUrl.trim() || expiryTooLong}
+            disabled={isLoading || !longUrl.trim() || expiryTooLong || customCodeInvalid}
             aria-label="Shorten URL"
           >
             {isLoading ? <span className={styles.spinner} aria-hidden="true" /> : 'Shorten'}
@@ -246,9 +255,29 @@ export default function App() {
           </select>
         </div>
 
+        <div className={styles.customIdRow}>
+          <span className={styles.expiryLabel}>Custom ID</span>
+          <input
+            className={styles.customIdInput}
+            type="text"
+            placeholder="optional"
+            value={customCode}
+            onChange={e => setCustomCode(e.target.value)}
+            disabled={isLoading}
+            aria-label="Custom short ID"
+            maxLength={16}
+          />
+        </div>
+
         {expiryTooLong && (
           <p className={styles.error} role="alert">
             Maximum expiry is {maxExpiryMonths} month{maxExpiryMonths === 1 ? '' : 's'}.
+          </p>
+        )}
+
+        {customCodeInvalid && (
+          <p className={styles.error} role="alert">
+            Custom ID must be 3–16 characters. Start and end with a letter or number; hyphens and underscores allowed in between.
           </p>
         )}
 

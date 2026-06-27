@@ -152,6 +152,7 @@
 
 .input,
 .expiryInput,
+.customIdInput,
 .expirySelect {
   color: var(--text-primary);
   background: var(--base);
@@ -171,12 +172,14 @@
 }
 
 .input::placeholder,
-.expiryInput::placeholder {
+.expiryInput::placeholder,
+.customIdInput::placeholder {
   color: var(--text-secondary);
 }
 
 .input:focus,
 .expiryInput:focus,
+.customIdInput:focus,
 .expirySelect:focus {
   border-color: var(--brand-blue);
   box-shadow: 0 0 0 var(--border-accent) var(--focus-wash);
@@ -185,6 +188,7 @@
 
 .input:disabled,
 .expiryInput:disabled,
+.customIdInput:disabled,
 .expirySelect:disabled {
   background: var(--surface-alt);
   opacity: 0.62;
@@ -272,6 +276,20 @@
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
   font-family: var(--font-sans);
+  font-size: var(--ui-small);
+}
+
+.customIdRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.customIdInput {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-mono);
   font-size: var(--ui-small);
 }
 
@@ -470,7 +488,8 @@
     width: 100%;
   }
 
-  .expiryRow {
+  .expiryRow,
+  .customIdRow {
     flex-wrap: wrap;
   }
 

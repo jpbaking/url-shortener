@@ -6,6 +6,8 @@ import { generateCode } from '../base62';
 const router = Router();
 const prisma = new PrismaClient();
 
+const CUSTOM_CODE_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{1,14}[a-zA-Z0-9]$/;
+
 type ExpiryUnit = 'minutes' | 'hours' | 'days' | 'weeks' | 'months';
 
 const UNIT_TO_MS: Record<ExpiryUnit, number> = {
@@ -171,13 +173,14 @@ function getClientIp(req: Request): string {
 }
 
 // POST /api/shorten
-// Body: { longUrl: string, expiryValue?: number, expiryUnit?: ExpiryUnit }
-// Returns: { shortUrl: string, expiresAt: string | null }
+// Body: { longUrl: string, expiryValue?: number, expiryUnit?: ExpiryUnit, customCode?: string }
+// Returns: { shortUrl: string, expiresAt: string }
 router.post('/', async (req: Request, res: Response) => {
-  const { longUrl, expiryValue, expiryUnit } = req.body as {
+  const { longUrl, expiryValue, expiryUnit, customCode } = req.body as {
     longUrl?: string;
     expiryValue?: unknown;
     expiryUnit?: unknown;
+    customCode?: unknown;
   };
 
   if (!longUrl || typeof longUrl !== 'string') {
@@ -195,6 +198,15 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
 
+  let resolvedCustomCode: string | undefined;
+  if (customCode !== undefined && customCode !== null && customCode !== '') {
+    if (typeof customCode !== 'string' || !CUSTOM_CODE_RE.test(customCode)) {
+      res.status(400).json({ error: 'Custom ID must be 3–16 characters. Use letters, numbers, hyphens, and underscores; start and end with a letter or number.' });
+      return;
+    }
+    resolvedCustomCode = customCode;
+  }
+
   const expiryResult = computeExpiresAt(expiryValue, expiryUnit);
   if (!expiryResult.ok) {
     res.status(400).json({ error: expiryResult.error });
@@ -203,54 +215,70 @@ router.post('/', async (req: Request, res: Response) => {
   const { expiresAt } = expiryResult;
   try {
     const { clientIdHash, createdByIpHash } = getClientIdentity(req, res);
-    const cooldownMinutes = getCooldownMinutes();
-    const cooldownMs = cooldownMinutes * 60 * 1000;
-    const now = new Date();
-    const cooldownStart = new Date(Date.now() - cooldownMs);
-    const recent = await prisma.shortUrl.findFirst({
-      where: {
-        longUrl,
-        clientIdHash,
-        createdAt: { gt: cooldownStart },
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: now } },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      select: { code: true, createdAt: true, expiresAt: true },
-    });
-    if (recent) {
-      const retryAfter = Math.max(1, Math.ceil((recent.createdAt.getTime() + cooldownMs - Date.now()) / 1000));
-      const waitLabel = formatDuration(retryAfter);
-      res.status(429)
-        .set('Retry-After', String(retryAfter))
-        .json({
-          error: `This URL was already shortened recently in this browser. Use the existing short URL below, or wait about ${waitLabel} to generate a unique new short URL. If the existing short URL expires first, you can generate a new one then.`,
-          shortUrl: `${process.env.REDIRECT_DOMAIN}/${recent.code}`,
-          expiresAt: recent.expiresAt?.toISOString() ?? null,
-          retryAfter,
-          waitLabel,
-        });
-      return;
-    }
+    let entry;
 
-    let entry = null;
-    for (let len = 6; len <= 16; len++) {
+    if (resolvedCustomCode) {
       try {
         entry = await prisma.shortUrl.create({
-          data: { code: generateCode(len), longUrl, clientIdHash, createdByIpHash, expiresAt },
+          data: { code: resolvedCustomCode, longUrl, clientIdHash, createdByIpHash, expiresAt },
         });
-        break;
       } catch (err) {
-        if ((err as { code?: string })?.code === 'P2002') continue;
+        if ((err as { code?: string })?.code === 'P2002') {
+          res.status(409).json({ error: 'This custom ID is already taken. Try a different one.' });
+          return;
+        }
         throw err;
       }
-    }
+    } else {
+      const cooldownMinutes = getCooldownMinutes();
+      const cooldownMs = cooldownMinutes * 60 * 1000;
+      const now = new Date();
+      const cooldownStart = new Date(Date.now() - cooldownMs);
+      const recent = await prisma.shortUrl.findFirst({
+        where: {
+          longUrl,
+          clientIdHash,
+          createdAt: { gt: cooldownStart },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: now } },
+          ],
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { code: true, createdAt: true, expiresAt: true },
+      });
+      if (recent) {
+        const retryAfter = Math.max(1, Math.ceil((recent.createdAt.getTime() + cooldownMs - Date.now()) / 1000));
+        const waitLabel = formatDuration(retryAfter);
+        res.status(429)
+          .set('Retry-After', String(retryAfter))
+          .json({
+            error: `This URL was already shortened recently in this browser. Use the existing short URL below, or wait about ${waitLabel} to generate a unique new short URL. If the existing short URL expires first, you can generate a new one then.`,
+            shortUrl: `${process.env.REDIRECT_DOMAIN}/${recent.code}`,
+            expiresAt: recent.expiresAt?.toISOString() ?? null,
+            retryAfter,
+            waitLabel,
+          });
+        return;
+      }
 
-    if (!entry) {
-      res.status(500).json({ error: 'Internal server error.' });
-      return;
+      entry = null;
+      for (let len = 6; len <= 16; len++) {
+        try {
+          entry = await prisma.shortUrl.create({
+            data: { code: generateCode(len), longUrl, clientIdHash, createdByIpHash, expiresAt },
+          });
+          break;
+        } catch (err) {
+          if ((err as { code?: string })?.code === 'P2002') continue;
+          throw err;
+        }
+      }
+
+      if (!entry) {
+        res.status(500).json({ error: 'Internal server error.' });
+        return;
+      }
     }
 
     res.status(201).json({
