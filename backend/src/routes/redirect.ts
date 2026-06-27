@@ -288,7 +288,7 @@ function redirectLandingPage(code: string, target: string): string {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Redirecting — ${htmlEscape(code)}</title>
+    <title>Redirecting — ${safeDisplayDomain}</title>
     <link rel="icon" href="${favicon}" type="image/svg+xml" />
     ${FONTS}
     <style>
