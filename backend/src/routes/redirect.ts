@@ -238,7 +238,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
       <section class="hero" aria-labelledby="page-title">
         <div class="brand">
           <img class="mark" src="${favicon}" alt="" />
-          <span class="wordmark">${htmlEscape(process.env.S_DOMAIN ?? 'short link')}</span>
+          <span class="wordmark">${htmlEscape(process.env.SHORT_DOMAIN ?? 'short link')}</span>
         </div>
         <p class="kicker">${htmlEscape(kicker)}</p>
         <h1 id="page-title">${htmlEscape(title)}</h1>
@@ -262,7 +262,7 @@ function redirectLandingPage(code: string, target: string): string {
   const favicon = svgDataUri(logoMarkSvg);
   const maxMonths = getMaxExpiryMonths();
   const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
-  const sDomain = htmlEscape(process.env.S_DOMAIN ?? 'this service');
+  const sDomain = htmlEscape(process.env.SHORT_DOMAIN ?? 'this service');
 
   let displayDomain: string;
   try {
