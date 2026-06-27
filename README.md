@@ -22,7 +22,7 @@ Only Nginx (port `80`) is exposed; the backend and PostgreSQL stay on the intern
 
 ## Quick start
 
-Requires Docker and Docker Compose.
+Requires Docker and Docker Compose. Use the root `compose-helper.sh` wrapper for local Compose operations; it pins the Compose project name via `compose-helper.env` and loads the root `.env`.
 
 ```bash
 # 1. Configure environment
@@ -30,7 +30,7 @@ cp .env.example .env
 # edit .env — set your domains and (optionally) S_SCHEME=https
 
 # 2. Bring up the full stack
-docker compose up --build
+./compose-helper.sh rebuild
 ```
 
 To browse the app locally, map your configured domains to your loopback address (they aren't real DNS names):
@@ -40,7 +40,7 @@ To browse the app locally, map your configured domains to your loopback address 
 127.0.0.1 short.url s.url
 ```
 
-Then open `http://<SHORT_DOMAIN>` (e.g. <http://short.url>) to shorten a URL.
+Then open `http://<SHORT_DOMAIN>` (e.g. <http://short.url>) to shorten a URL. Unknown paths on the main domain render a branded 404 page.
 
 > **Production — public (Cloudflare Tunnel):** No DNS `A` record or open inbound port needed. Run a `cloudflared` tunnel and point it at `localhost:80`. Cloudflare terminates TLS automatically; set `S_SCHEME=https` in `.env`. Because cloudflared is the TCP peer of Nginx, client IPs arrive via `X-Forwarded-For` — the Nginx config handles this automatically.
 >
@@ -48,15 +48,20 @@ Then open `http://<SHORT_DOMAIN>` (e.g. <http://short.url>) to shorten a URL.
 
 ## Configuration
 
-The root `.env` (copied from `.env.example`) supplies five variables consumed by Compose:
+The root `.env` (copied from `.env.example`) supplies variables consumed by Compose:
 
-| Variable            | Description                                              | Default      |
-|---------------------|----------------------------------------------------------|--------------|
-| `POSTGRES_DB`       | Database name                                            | —            |
-| `POSTGRES_PASSWORD` | PostgreSQL superuser password                           | —            |
-| `SHORT_DOMAIN`      | Hostname for the SPA                                     | `short.url`  |
-| `S_DOMAIN`          | Hostname for short-link resolution                      | `s.url`      |
-| `S_SCHEME`          | Scheme for short links shown to users (`http`/`https`)  | `http`       |
+| Variable                     | Description                                                                    | Default        |
+|------------------------------|--------------------------------------------------------------------------------|----------------|
+| `POSTGRES_DB`                | Database name                                                                  | —              |
+| `POSTGRES_PASSWORD`          | PostgreSQL superuser password                                                  | —              |
+| `SHORT_DOMAIN`               | Hostname for the SPA                                                           | `short.url`    |
+| `S_DOMAIN`                   | Hostname for short-link resolution                                             | `s.url`        |
+| `S_SCHEME`                   | Scheme for short links shown to users (`http`/`https`)                        | `http`         |
+| `SHORTEN_COOLDOWN_MINUTES`   | Minutes before the same browser-scoped client + URL can generate a new code    | `60`           |
+| `IP_HASH_SECRET`             | Stable HMAC secret for anonymizing client IPs before storage                   | —              |
+| `CLIENT_ID_HASH_SECRET`      | Stable HMAC secret for anonymizing anonymous client cookie IDs before storage   | —              |
+| `CLIENT_COOKIE_NAME`         | Anonymous client ID cookie name                                                | `lw_client_id` |
+| `CLIENT_COOKIE_MAX_AGE_DAYS` | Anonymous client ID cookie lifetime in days                                    | `365`          |
 
 Compose derives `REDIRECT_DOMAIN` as `${S_SCHEME}://${S_DOMAIN}` and injects it, along with `DATABASE_URL`, into the backend. Data persists in the `pg_data` named volume — removing it drops all shortened URLs.
 
@@ -77,7 +82,7 @@ Request body:
 - `longUrl` (required) — must start with `http://` or `https://`, max 2048 characters.
 - `expiryValue` / `expiryUnit` (optional) — omit for a link that never expires. Units: `minutes`, `hours`, `days`, `weeks`, `months`.
 
-Response (`201` for a new link, `200` for a dedup hit):
+Response (`201` for a new link):
 
 ```json
 {
@@ -86,21 +91,34 @@ Response (`201` for a new link, `200` for a dedup hit):
 }
 ```
 
-Submitting the same URL from the same IP within one hour of a prior submission returns `429 Too Many Requests` with a `Retry-After` header. After the window clears, a new short code is always created.
+Submitting the same URL from the same browser within `SHORTEN_COOLDOWN_MINUTES` returns `429 Too Many Requests` with a `Retry-After` header if the previous matching short URL has not expired. The body includes the most recent short URL so the user can reuse it, plus a human wait label for when a unique new code can be generated. The browser identity is an anonymous `HttpOnly`, `SameSite=Lax` cookie; the server stores only HMAC-SHA-256 digests of that cookie and the client IP, never raw IP addresses or raw cookie IDs.
+
+```json
+{
+  "error": "This URL was already shortened recently in this browser. Use the existing short URL below, or wait about 1 hour to generate a unique new short URL. If the existing short URL expires first, you can generate a new one then.",
+  "shortUrl": "http://s.url/aB3x9Z",
+  "expiresAt": null,
+  "retryAfter": 3598,
+  "waitLabel": "1 hour"
+}
+```
+
+After the cooldown window clears, or once the previous matching short URL has expired, submitting the same URL creates a new short code.
 
 ### `GET /:code`
 
-Resolves a short code: `302` redirect to the original URL, `410 Gone` if the link has expired, or `400` for a malformed code. Each successful resolution increments a click counter (fire-and-forget — a counter failure never blocks the redirect).
+Resolves a short code: `302` redirect to the original URL, `404 Not Found` if the code does not exist, `410 Gone` if the link has expired, or `400` for a malformed code. Failed redirect outcomes render branded HTML status pages. Each successful resolution increments a click counter (fire-and-forget — a counter failure never blocks the redirect).
 
 Short codes are random base62 strings, 6–16 characters; length grows automatically on collision.
 
 ## Common commands
 
 ```bash
-docker compose up --build        # build + start the full stack
-docker compose down              # stop (keep data)
-docker compose down -v           # stop and wipe the database volume
-docker compose logs -f backend   # tail logs (nginx | backend | postgres)
+./compose-helper.sh rebuild      # build + start detached
+./compose-helper.sh up           # build + start detached + follow logs
+./compose-helper.sh stop         # stop (keep data)
+./compose-helper.sh down         # stop and wipe the database volume
+./compose-helper.sh logs backend # tail logs (nginx | backend | postgres)
 ```
 
 ## Testing
@@ -108,7 +126,7 @@ docker compose logs -f backend   # tail logs (nginx | backend | postgres)
 A Playwright E2E suite runs against the live stack (it does not mock the backend or database). With the stack up:
 
 ```bash
-docker compose --profile test run --rm playwright
+./compose-helper.sh --profile test run --rm playwright
 ```
 
 The Playwright container resolves `short.url` / `s.url` via Docker network aliases, so no `/etc/hosts` edits are needed for tests. Reports are written to `playwright/playwright-report/` and `playwright/test-results/`.

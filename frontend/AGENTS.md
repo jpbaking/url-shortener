@@ -4,16 +4,18 @@ React + TypeScript SPA built with Vite. Provides the UI for shortening URLs: lon
 
 ## Ownership
 
-All UI code lives in `src/`. The compiled static output is bundled into the Nginx Docker image (multi-stage build in `Dockerfile`).
+All UI code lives in `src/`. Static brand assets live in `public/design/assets/` (`logo-mark.svg`, `mesh-blue.svg`, `mesh-white.svg`) and Vite copies them to the build root, where they are served at `/design/assets/...`. The compiled static output is bundled into the Nginx Docker image (multi-stage build in `Dockerfile`).
 
 ## Local Contracts
 
 - API calls go to `/api/shorten` (relative path). Nginx proxies this to the backend in production; point to the backend directly in local dev if needed.
 - Expiry is optional: `expiryValue` is only included in the request body when the field is non-empty.
-- UI state machine: `idle → loading → success | error`. The "Shorten another" button resets to `idle`.
+- UI state machine: `idle → loading → success | duplicate | error`. The `duplicate` state shows the most recent short URL returned by a 429 response plus the wait time for generating a unique new code. The "Shorten another" button resets to `idle`.
 - "Copied!" label auto-clears after 2 seconds.
 - Enter key on the URL input triggers shortening.
 - The wordmark and page `<title>` are derived from `window.location.hostname` at runtime — no hardcoded domain name in source. `index.html` carries only a generic fallback title.
+- The brand mark renders from `/design/assets/logo-mark.svg`; both the main view and the 404 view link it back to `/`.
+- Unknown SPA paths render the branded 404 view client-side; Nginx still serves `index.html` for those paths.
 
 ## Work Guidance
 

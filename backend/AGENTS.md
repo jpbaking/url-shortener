@@ -9,29 +9,34 @@ All API behavior: short code generation, expiry logic, dedup, click counting, an
 ## Local Contracts
 
 - Short codes are random alphanumeric strings generated from a 62-character alphabet (`src/base62.ts` → `generateCode(length)`). Minimum length is 6, maximum is 16. Creation attempts a direct insert at length 6; on each `P2002` unique-constraint collision the length increments by 1 and retries up to 16.
-- Every submission always creates a new short code, even if the same IP submits the same `longUrl` again.
-- Rate limit: if the same IP submits the same `longUrl` within 1 hour of a prior submission, the request is rejected with 429 and a `Retry-After` header (seconds until the window clears).
+- Every accepted submission always creates a new short code, even if another browser or device behind the same IP submits the same `longUrl`.
+- Rate limit: if the same browser-scoped client submits the same `longUrl` within `SHORTEN_COOLDOWN_MINUTES` of a prior non-expired submission, the request is rejected with 429, a `Retry-After` header (seconds until the window clears), and the most recent short URL for that client + URL. Expired prior links do not block new short-code creation.
+- Redirect failures render branded HTML status pages: invalid code = 400, missing code = 404, expired code = 410.
 - `longUrl` must start with `http://` or `https://` and be ≤ 2048 characters.
 - Expiry units: `minutes`, `hours`, `days`, `weeks`, `months`. Omitted or empty `expiryValue` = no expiry.
 - `REDIRECT_DOMAIN` env var sets the domain prefix in the returned short URL (no trailing slash).
+- `SHORTEN_COOLDOWN_MINUTES` env var sets the duplicate-submission cooldown window in minutes (default 60; invalid values fall back to 60).
+- `IP_HASH_SECRET` and `CLIENT_ID_HASH_SECRET` env vars are required stable HMAC secrets. Raw IPs and cookie IDs must never be stored.
+- `CLIENT_COOKIE_NAME` and `CLIENT_COOKIE_MAX_AGE_DAYS` configure the anonymous browser-scoped client ID cookie.
 - `DATABASE_URL` env var is the Prisma PostgreSQL DSN.
-- Client IP is read from the `X-Real-IP` header (set by Nginx); falls back to socket address for local dev.
+- Client IP is read from the `X-Real-IP` header (set by Nginx); falls back to socket address for local dev. The IP is HMAC-hashed before storage and is not used as the primary duplicate key.
 
 ## Database Schema
 
 Single model `ShortUrl` in `prisma/schema.prisma`:
 
-| Field         | Type       | Notes                          |
-|---------------|------------|--------------------------------|
-| id            | BigInt PK  | Auto-increment                 |
-| code          | String(16) | Unique; random alphanumeric, 6–16 chars |
-| longUrl       | String     | The original URL               |
-| createdByIp   | String     | Used for rate-limit check      |
-| clickCount    | Int        | Default 0; incremented on redirect |
-| expiresAt     | DateTime?  | Null = never expires           |
-| createdAt     | DateTime   | Default now()                  |
+| Field           | Type       | Notes                          |
+|-----------------|------------|--------------------------------|
+| id              | BigInt PK  | Auto-increment                 |
+| code            | String(16) | Unique; random alphanumeric, 6–16 chars |
+| longUrl         | String     | The original URL               |
+| clientIdHash    | String(64) | HMAC-SHA-256 of anonymous client cookie; primary duplicate key |
+| createdByIpHash | String(64) | HMAC-SHA-256 of client IP; anonymized abuse signal |
+| clickCount      | Int        | Default 0; incremented on redirect |
+| expiresAt       | DateTime?  | Null = never expires           |
+| createdAt       | DateTime   | Default now()                  |
 
-Index on `(longUrl, createdByIp)` for rate-limit lookups.
+Index on `(longUrl, clientIdHash)` for rate-limit lookups; index on `createdByIpHash` for anonymized IP analysis.
 
 ## Work Guidance
 
