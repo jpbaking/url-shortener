@@ -22,6 +22,7 @@ Stack: React + Vite (frontend), Express + Prisma + PostgreSQL (backend), Nginx (
   - `S_DOMAIN` — hostname for short link resolution, e.g. `s.url` (default: `s.url`)
   - `S_SCHEME` — scheme for short links shown to users, `http` or `https` (default: `http`)
   - `SHORTEN_COOLDOWN_MINUTES` — minutes the same browser-scoped client must wait before the same `longUrl` can generate a unique new code (default: `60`)
+  - `MAX_LINK_EXPIRY_MONTHS` — maximum lifetime applied to links and the default lifetime when no explicit expiry is supplied (default: `12`)
   - `IP_HASH_SECRET` — stable HMAC secret used to anonymize client IPs before storage
   - `CLIENT_ID_HASH_SECRET` — stable HMAC secret used to anonymize browser-scoped client IDs before storage
   - `CLIENT_COOKIE_NAME` — anonymous client ID cookie name (default: `lw_client_id`)
@@ -51,7 +52,7 @@ When the user requests a durable behavior change, record it here or in the relev
 ## Child DOX Index
 
 - [backend/](backend/AGENTS.md) — Express + Prisma API service; shortening logic, redirect handler, base62 encoding, DB schema
-- [frontend/](frontend/AGENTS.md) — React SPA (Vite); URL input form, optional expiry controls, result display with copy button
+- [frontend/](frontend/AGENTS.md) — React SPA (Vite); URL input form, config-driven expiry limits, optional custom code, result display, client-side 404
 - [nginx/](nginx/AGENTS.md) — Nginx reverse proxy; routes `${SHORT_DOMAIN}` to the SPA and `${S_DOMAIN}` to the backend redirect handler; domains set via `.env`
 - [playwright/](playwright/AGENTS.md) — Playwright E2E suite; 45 tests covering the API, redirect handler, and SPA; runs against the live Docker Compose stack
 

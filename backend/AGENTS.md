@@ -4,7 +4,7 @@ Express + TypeScript API service. Owns URL shortening and redirect resolution. U
 
 ## Ownership
 
-All API behavior: short code generation, expiry logic, dedup, click counting, and the database schema.
+All API behavior: short code generation, custom-code claims, expiry logic, `GET /api/config`, browser-scoped dedup, landing-page resolution, click counting, and the database schema.
 
 ## Local Contracts
 
@@ -38,7 +38,7 @@ Single model `ShortUrl` in `prisma/schema.prisma`:
 | clientIdHash    | String(64) | HMAC-SHA-256 of anonymous client cookie; primary duplicate key |
 | createdByIpHash | String(64) | HMAC-SHA-256 of client IP; anonymized abuse signal |
 | clickCount      | Int        | Default 0; incremented on redirect |
-| expiresAt       | DateTime?  | Null = never expires           |
+| expiresAt       | DateTime?  | Expiry timestamp; null only for legacy rows created before the max-expiry policy |
 | createdAt       | DateTime   | Default now()                  |
 
 Index on `(longUrl, clientIdHash)` for rate-limit lookups; index on `createdByIpHash` for anonymized IP analysis.
