@@ -1,6 +1,6 @@
 # URL Shortener
 
-A self-hosted URL shortener. Paste a long URL into the web UI and get a short link; visiting the short link issues a `302` redirect to the original URL.
+A self-hosted URL shortener. Paste a long URL into the web UI and get a short link; visiting the short link opens a branded landing page showing the destination domain — the user clicks **Proceed** to navigate there, or **Go Back** to return.
 
 The app runs across **two domains backed by one service** (both are configurable via `.env`; the defaults below are examples):
 
@@ -76,12 +76,14 @@ Request body:
 {
   "longUrl": "https://example.com/some/very/long/path",
   "expiryValue": 7,
-  "expiryUnit": "days"
+  "expiryUnit": "days",
+  "customCode": "my-link"
 }
 ```
 
 - `longUrl` (required) — must start with `http://` or `https://`, max 2048 characters.
 - `expiryValue` / `expiryUnit` (optional) — omit to use the configured maximum lifetime (`MAX_LINK_EXPIRY_MONTHS`). Explicit expiry is capped at the same maximum. Units: `minutes`, `hours`, `days`, `weeks`, `months`.
+- `customCode` (optional) — a user-chosen short code, 3–16 characters, letters/numbers/hyphens/underscores, must start and end with a letter or number. If the code is occupied by an active (non-expired) link, returns `409 Conflict`. Expired codes are automatically reclaimed. Providing a custom code bypasses the cooldown/dedup check.
 
 Response (`201` for a new link):
 
@@ -106,11 +108,19 @@ Submitting the same URL from the same browser within `SHORTEN_COOLDOWN_MINUTES` 
 
 After the cooldown window clears, or once the previous matching short URL has expired, submitting the same URL creates a new short code.
 
+### `GET /api/config`
+
+Returns server-side configuration the UI needs to enforce matching constraints.
+
+```json
+{ "maxExpiryMonths": 12 }
+```
+
 ### `GET /:code`
 
-Resolves a short code: `302` redirect to the original URL, `404 Not Found` if the code does not exist, `410 Gone` if the link has expired, or `400` for a malformed code. Failed redirect outcomes render branded HTML status pages. Each successful resolution increments a click counter (fire-and-forget — a counter failure never blocks the redirect).
+Resolves a short code. Returns a `200` branded HTML landing page showing the destination domain and a disclaimer; the user clicks **Proceed** to navigate or **Go Back** to cancel. Returns `404 Not Found` if the code does not exist, `410 Gone` if the link has expired, or `400` for a malformed code. All failure outcomes render branded HTML status pages. Each successful resolution increments a click counter (fire-and-forget — a counter failure never blocks the landing page render).
 
-Short codes are random base62 strings, 6–16 characters; length grows automatically on collision.
+Short codes are random base62 strings, 6–16 characters (length grows on collision), or a user-supplied custom code.
 
 ## Common commands
 
