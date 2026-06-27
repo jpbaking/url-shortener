@@ -4,8 +4,9 @@ import { Client } from 'pg';
 const SHORT_DOMAIN  = process.env.SHORT_DOMAIN ?? 'short.url';
 const S_DOMAIN      = process.env.S_DOMAIN     ?? 's.url';
 const S_SCHEME      = process.env.S_SCHEME     ?? 'http';
+const REDIRECT_HOST = S_DOMAIN || SHORT_DOMAIN;
 const API           = `${S_SCHEME}://${SHORT_DOMAIN}/api/shorten`;
-const REDIRECT_BASE = `${S_SCHEME}://${S_DOMAIN}`;
+const REDIRECT_BASE = `${S_SCHEME}://${REDIRECT_HOST}`;
 
 function uniqueUrl(suffix = '') {
   return `https://example.com/${Math.random().toString(36).slice(2)}${suffix}`;
@@ -38,16 +39,18 @@ async function psql(sql: string): Promise<string> {
 }
 
 test.describe('redirect handler', () => {
-  test('valid short code issues 302 with correct Location header', async ({ request }) => {
+  test('valid short code returns the branded landing page', async ({ request }) => {
     const longUrl  = uniqueUrl('/redirect-test');
     const shortUrl = await shorten(request, longUrl);
     const code     = codeFrom(shortUrl);
 
-    const response = await request.get(`${REDIRECT_BASE}/${code}`, {
-      maxRedirects: 0,
-    });
-    expect(response.status()).toBe(302);
-    expect(response.headers()['location']).toBe(longUrl);
+    const response = await request.get(`${REDIRECT_BASE}/${code}`);
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('text/html');
+    const body = await response.text();
+    expect(body).toContain('Review before you proceed');
+    expect(body).toContain('Proceed to destination');
+    expect(body).toContain(longUrl);
   });
 
   test('XSS payload in longUrl is HTML-escaped in the redirect body', async ({ request }) => {
@@ -55,9 +58,7 @@ test.describe('redirect handler', () => {
     const shortUrl   = await shorten(request, xssPayload);
     const code       = codeFrom(shortUrl);
 
-    const response = await request.get(`${REDIRECT_BASE}/${code}`, {
-      maxRedirects: 0,
-    });
+    const response = await request.get(`${REDIRECT_BASE}/${code}`);
     const body = await response.text();
 
     // Raw unescaped payload must not appear in any HTML context
@@ -65,10 +66,7 @@ test.describe('redirect handler', () => {
     // HTML attribute contexts must use entities
     expect(body).toContain('&lt;script&gt;');
     expect(body).toContain('&quot;');
-    // JS context must escape </script to avoid closing the outer <script> block
-    expect(body).toContain('<\\/script>');
-    // Location header carries the unmodified original URL
-    expect(response.headers()['location']).toBe(xssPayload);
+    expect(body).toContain('Proceed to destination');
   });
 
   test('non-existent code returns 404', async ({ request }) => {
@@ -99,15 +97,15 @@ test.describe('redirect handler', () => {
     const shortUrl = await shorten(request, longUrl);
     const code     = codeFrom(shortUrl);
 
-    await request.get(`${REDIRECT_BASE}/${code}`, { maxRedirects: 0 });
-    await request.get(`${REDIRECT_BASE}/${code}`, { maxRedirects: 0 });
+    await request.get(`${REDIRECT_BASE}/${code}`);
+    await request.get(`${REDIRECT_BASE}/${code}`);
 
     const count = await psql(`SELECT "clickCount" FROM "ShortUrl" WHERE code = '${code}'`);
     expect(parseInt(count, 10)).toBe(2);
   });
 
   test('invalid short code characters return 400', async ({ request }) => {
-    const response = await request.get(`${REDIRECT_BASE}/!!invalid`, { maxRedirects: 0 });
+    const response = await request.get(`${REDIRECT_BASE}/!!invalid`);
     expect(response.status()).toBe(400);
     expect(await response.text()).toContain('This short code is not valid.');
   });

@@ -4,6 +4,7 @@ import { Client } from 'pg';
 const SHORT_DOMAIN = process.env.SHORT_DOMAIN ?? 'short.url';
 const S_DOMAIN     = process.env.S_DOMAIN     ?? 's.url';
 const S_SCHEME     = process.env.S_SCHEME     ?? 'http';
+const REDIRECT_HOST = S_DOMAIN || SHORT_DOMAIN;
 const COOLDOWN_MINUTES = Number(process.env.SHORTEN_COOLDOWN_MINUTES ?? '60');
 const CLIENT_COOKIE_NAME = process.env.CLIENT_COOKIE_NAME ?? 'lw_client_id';
 const API = `${S_SCHEME}://${SHORT_DOMAIN}/api/shorten`;
@@ -29,14 +30,14 @@ function uniqueUrl(suffix = '') {
 }
 
 test.describe('POST /api/shorten', () => {
-  test('201 with shortUrl and null expiresAt for a valid URL', async ({ request }) => {
+  test('201 with shortUrl and a default expiresAt for a valid URL', async ({ request }) => {
     const response = await request.post(API, {
       data: { longUrl: uniqueUrl() },
     });
     expect(response.status()).toBe(201);
     const body = await response.json();
-    expect(body.shortUrl).toMatch(new RegExp(`^${S_SCHEME}://${S_DOMAIN.replace(/\./g, '\\.')}/`));
-    expect(body.expiresAt).toBeNull();
+    expect(body.shortUrl).toMatch(new RegExp(`^${S_SCHEME}://${REDIRECT_HOST.replace(/\./g, '\\.')}/`));
+    expect(body.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   test('201 with correct expiresAt when expiry is supplied', async ({ request }) => {
@@ -65,7 +66,7 @@ test.describe('POST /api/shorten', () => {
     const body = await r2.json();
     expect(body.error).toMatch(/unique new short URL/i);
     expect(body.shortUrl).toBe(shortUrl1);
-    expect(body.expiresAt).toBeNull();
+    expect(body.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(body.waitLabel).toMatch(/minute|hour|day/);
     expect(body.retryAfter).toBeGreaterThan(0);
     expect(body.retryAfter).toBeLessThanOrEqual(COOLDOWN_MINUTES * 60);

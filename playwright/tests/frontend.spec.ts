@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 const SHORT_DOMAIN = process.env.SHORT_DOMAIN ?? 'short.url';
 const S_DOMAIN     = process.env.S_DOMAIN     ?? 's.url';
 const S_SCHEME     = process.env.S_SCHEME     ?? 'http';
+const REDIRECT_HOST = S_DOMAIN || SHORT_DOMAIN;
 const SPA = `${S_SCHEME}://${SHORT_DOMAIN}`;
 
 function uniqueUrl(suffix = '') {
@@ -37,14 +38,14 @@ test.describe('React SPA', () => {
     await expect(page.getByLabel('Shorten URL')).toBeEnabled();
   });
 
-  test('golden path: clicking Shorten displays the result with a s.url link', async ({ page }) => {
+  test('golden path: clicking Shorten displays the result with the configured redirect host', async ({ page }) => {
     await page.goto(SPA);
     await page.getByLabel('Long URL to shorten').fill(uniqueUrl());
     await page.getByLabel('Shorten URL').click();
 
     const result = page.getByRole('region', { name: 'Shortened URL' });
     await expect(result).toBeVisible();
-    await expect(result.getByRole('link')).toHaveAttribute('href', new RegExp(`^${S_SCHEME}://${S_DOMAIN.replace(/\./g, '\\.')}/`));
+    await expect(result.getByRole('link')).toHaveAttribute('href', new RegExp(`^${S_SCHEME}://${REDIRECT_HOST.replace(/\./g, '\\.')}/`));
   });
 
   test('Enter key on the URL input triggers shortening', async ({ page }) => {
