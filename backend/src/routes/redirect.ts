@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { getHomeUrl, getShortDomain } from '../url-config';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -230,7 +231,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
   const favicon = svgDataUri(logoMarkSvg);
   const maxMonths = getMaxExpiryMonths();
   const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
-  const homeUrl = `${process.env.S_SCHEME ?? 'http'}://${process.env.SHORT_DOMAIN ?? 'short.url'}`;
+  const homeUrl = getHomeUrl();
 
   return `<!doctype html>
 <html lang="en">
@@ -247,7 +248,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
       <section class="hero" aria-labelledby="page-title">
         <a class="brand" href="${homeUrl}">
           <img class="mark" src="${favicon}" alt="" />
-          <span class="wordmark">${htmlEscape(process.env.SHORT_DOMAIN ?? 'short link')}</span>
+          <span class="wordmark">${htmlEscape(getShortDomain())}</span>
         </a>
         <p class="kicker">${htmlEscape(kicker)}</p>
         <h1 id="page-title">${htmlEscape(title)}</h1>
@@ -271,8 +272,9 @@ function redirectLandingPage(code: string, target: string): string {
   const favicon = svgDataUri(logoMarkSvg);
   const maxMonths = getMaxExpiryMonths();
   const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
-  const sDomain = htmlEscape(process.env.SHORT_DOMAIN ?? 'this service');
-  const homeUrl = `${process.env.S_SCHEME ?? 'http'}://${process.env.SHORT_DOMAIN ?? 'short.url'}`;
+  const shortDomain = getShortDomain();
+  const sDomain = htmlEscape(shortDomain);
+  const homeUrl = getHomeUrl();
 
   let displayDomain: string;
   try {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { generateCode } from '../base62';
+import { getRedirectBaseUrl } from '../url-config';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -214,6 +215,7 @@ router.post('/', async (req: Request, res: Response) => {
   }
   const { expiresAt } = expiryResult;
   try {
+    const redirectBaseUrl = getRedirectBaseUrl();
     const { clientIdHash, createdByIpHash } = getClientIdentity(req, res);
     let entry;
 
@@ -259,7 +261,7 @@ router.post('/', async (req: Request, res: Response) => {
           .set('Retry-After', String(retryAfter))
           .json({
             error: `This URL was already shortened recently in this browser. Use the existing short URL below, or wait about ${waitLabel} to generate a unique new short URL. If the existing short URL expires first, you can generate a new one then.`,
-            shortUrl: `${process.env.REDIRECT_DOMAIN}/${recent.code}`,
+            shortUrl: `${redirectBaseUrl}/${recent.code}`,
             expiresAt: recent.expiresAt?.toISOString() ?? null,
             retryAfter,
             waitLabel,
@@ -287,7 +289,7 @@ router.post('/', async (req: Request, res: Response) => {
     }
 
     res.status(201).json({
-      shortUrl: `${process.env.REDIRECT_DOMAIN}/${entry.code}`,
+      shortUrl: `${redirectBaseUrl}/${entry.code}`,
       expiresAt: entry.expiresAt!.toISOString(),
     });
   } catch (error) {

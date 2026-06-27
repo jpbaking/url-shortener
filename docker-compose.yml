@@ -9,14 +9,16 @@ services:
       - "80:80"                  # Only container exposed to the outside
     environment:
       SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
-      S_DOMAIN: ${S_DOMAIN:-s.url}
+      S_DOMAIN: ${S_DOMAIN-}
     volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/nginx.conf.template:/etc/nginx/url-shortener/nginx.conf.template:ro
+      - ./nginx/nginx.single-domain.conf.template:/etc/nginx/url-shortener/nginx.single-domain.conf.template:ro
+      - ./nginx/render-config.sh:/docker-entrypoint.d/30-render-url-shortener-config.sh:ro
     networks:
       default:
         aliases:
           - ${SHORT_DOMAIN:-short.url}
-          - ${S_DOMAIN:-s.url}
+          - ${S_DOMAIN:-${SHORT_DOMAIN:-short.url}}
     depends_on:
       - backend
     restart: unless-stopped
@@ -30,7 +32,7 @@ services:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
       S_SCHEME: ${S_SCHEME:-http}
-      REDIRECT_DOMAIN: ${S_SCHEME:-http}://${S_DOMAIN:-s.url}
+      S_DOMAIN: ${S_DOMAIN-}
       SHORTEN_COOLDOWN_MINUTES: ${SHORTEN_COOLDOWN_MINUTES:-60}
       IP_HASH_SECRET: ${IP_HASH_SECRET}
       CLIENT_ID_HASH_SECRET: ${CLIENT_ID_HASH_SECRET}
@@ -67,7 +69,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
-      S_DOMAIN: ${S_DOMAIN:-s.url}
+      S_DOMAIN: ${S_DOMAIN-}
       S_SCHEME: ${S_SCHEME:-http}
       SHORTEN_COOLDOWN_MINUTES: ${SHORTEN_COOLDOWN_MINUTES:-60}
       IP_HASH_SECRET: ${IP_HASH_SECRET}
