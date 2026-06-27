@@ -218,13 +218,18 @@ router.post('/', async (req: Request, res: Response) => {
     let entry;
 
     if (resolvedCustomCode) {
+      // Clear any expired record occupying this code so it can be reclaimed.
+      await prisma.shortUrl.deleteMany({
+        where: { code: resolvedCustomCode, expiresAt: { lte: new Date() } },
+      });
+
       try {
         entry = await prisma.shortUrl.create({
           data: { code: resolvedCustomCode, longUrl, clientIdHash, createdByIpHash, expiresAt },
         });
       } catch (err) {
         if ((err as { code?: string })?.code === 'P2002') {
-          res.status(409).json({ error: 'This custom ID is already taken. Try a different one.' });
+          res.status(409).json({ error: 'This custom ID is already in use. Try a different one.' });
           return;
         }
         throw err;
