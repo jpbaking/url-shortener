@@ -29,6 +29,7 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SHORT_DOMAIN: ${SHORT_DOMAIN:-short.url}
+      S_SCHEME: ${S_SCHEME:-http}
       REDIRECT_DOMAIN: ${S_SCHEME:-http}://${S_DOMAIN:-s.url}
       SHORTEN_COOLDOWN_MINUTES: ${SHORTEN_COOLDOWN_MINUTES:-60}
       IP_HASH_SECRET: ${IP_HASH_SECRET}

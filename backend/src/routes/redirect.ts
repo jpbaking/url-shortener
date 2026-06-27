@@ -109,6 +109,14 @@ function commonCss(meshBlue: string, meshWhite: string): string {
         align-items: center;
         gap: 12px;
         margin-bottom: 26px;
+        color: inherit;
+        text-decoration: none;
+        width: fit-content;
+      }
+
+      .brand:hover .wordmark {
+        text-decoration: underline;
+        text-underline-offset: 3px;
       }
 
       .mark {
@@ -222,6 +230,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
   const favicon = svgDataUri(logoMarkSvg);
   const maxMonths = getMaxExpiryMonths();
   const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
+  const homeUrl = `${process.env.S_SCHEME ?? 'http'}://${process.env.SHORT_DOMAIN ?? 'short.url'}`;
 
   return `<!doctype html>
 <html lang="en">
@@ -236,10 +245,10 @@ function statusPage(status: number, kicker: string, title: string, message: stri
   <body>
     <main>
       <section class="hero" aria-labelledby="page-title">
-        <div class="brand">
+        <a class="brand" href="${homeUrl}">
           <img class="mark" src="${favicon}" alt="" />
           <span class="wordmark">${htmlEscape(process.env.SHORT_DOMAIN ?? 'short link')}</span>
-        </div>
+        </a>
         <p class="kicker">${htmlEscape(kicker)}</p>
         <h1 id="page-title">${htmlEscape(title)}</h1>
         <p class="lead">The short link could not be resolved.</p>
@@ -263,6 +272,7 @@ function redirectLandingPage(code: string, target: string): string {
   const maxMonths = getMaxExpiryMonths();
   const footerText = `Links with no custom expiry expire after ${maxMonths} month${maxMonths === 1 ? '' : 's'}.`;
   const sDomain = htmlEscape(process.env.SHORT_DOMAIN ?? 'this service');
+  const homeUrl = `${process.env.S_SCHEME ?? 'http'}://${process.env.SHORT_DOMAIN ?? 'short.url'}`;
 
   let displayDomain: string;
   try {
@@ -357,10 +367,10 @@ function redirectLandingPage(code: string, target: string): string {
   <body>
     <main>
       <section class="hero" aria-labelledby="page-title">
-        <div class="brand">
+        <a class="brand" href="${homeUrl}">
           <img class="mark" src="${favicon}" alt="" />
           <span class="wordmark">${sDomain}</span>
-        </div>
+        </a>
         <p class="kicker">External link</p>
         <h1 id="page-title">Review before you proceed</h1>
         <p class="lead">You are about to leave ${sDomain} and visit a third-party website.</p>
