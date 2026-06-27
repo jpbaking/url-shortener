@@ -1,9 +1,4 @@
-/* Design tokens
-   Palette: deep navy base, off-white surface, slate mid, electric blue accent
-   Typography: IBM Plex Mono (display + utility) / IBM Plex Sans (body)
-   Signature element: the input and result share one continuous monospace line —
-   the URL flows through the interface as raw text, undecorated.
-*/
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -12,18 +7,67 @@
 }
 
 :root {
-  --bg:         #0d1117;
-  --surface:    #161b22;
-  --border:     #30363d;
-  --muted:      #8b949e;
-  --text:       #e6edf3;
-  --accent:     #4493f8;
-  --accent-dim: #1f3a5f;
-  --error:      #f85149;
-  --success:    #3fb950;
+  --brand-blue: #12279E;
+  --brand-blue-deep: #0B1660;
+  --accent-amber: #D9821F;
+  --accent-amber-deep: #9A5A12;
+  --ink: #16182E;
+  --muted: #61657F;
+  --line: #E5E7F1;
+  --surface: #F4F5FB;
+  --base: #FFFFFF;
+  --amber-surface: #FDF6EC;
+  --text-primary: var(--ink);
+  --text-secondary: var(--muted);
+  --text-on-blue: #FFFFFF;
+  --text-on-blue-dim: rgba(255,255,255,0.78);
+  --surface-page: var(--base);
+  --surface-alt: var(--surface);
+  --surface-invert: var(--brand-blue);
+  --border-default: var(--line);
+  --border-on-blue: rgba(255,255,255,0.2);
+  --focus-ring: var(--accent-amber);
+  --focus-wash: rgba(18,39,158,0.08);
+  --spinner-track: rgba(255,255,255,0.3);
+  --status-live: var(--brand-blue);
+  --status-pilot: var(--accent-amber);
+  --status-shipped: #2E7D5B;
+  --status-planned: #B7BBD0;
 
-  --font-mono: 'IBM Plex Mono', monospace;
-  --font-sans: 'IBM Plex Sans', sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --ui-h1: 32px;
+  --ui-h2: 24px;
+  --ui-body: 16px;
+  --ui-small: 14px;
+  --ui-kicker: 13px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --track-tight: -0.02em;
+  --track-snug: -0.015em;
+  --track-kicker: 0.18em;
+  --track-label: 0.08em;
+
+  --space-1: 8px;
+  --space-2: 12px;
+  --space-3: 18px;
+  --space-4: 26px;
+  --space-5: 40px;
+  --space-6: 48px;
+  --space-7: 64px;
+  --space-8: 88px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 13px;
+  --border-hair: 1px;
+  --border-accent: 3px;
+  --shadow-card: 0 1px 3px rgba(22,24,46,0.08);
+  --shadow-pop: 0 8px 30px rgba(11,22,96,0.12);
+  --mesh-opacity-light: 0.11;
+  --mesh-opacity-dark: 0.16;
 }
 
 html, body {
@@ -31,10 +75,10 @@ html, body {
 }
 
 body {
-  background-color: var(--bg);
-  color: var(--text);
+  background-color: var(--surface-page);
+  color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: 16px;
+  font-size: var(--ui-body);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -47,7 +91,7 @@ body {
 
 /* Visible keyboard focus for accessibility */
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
 

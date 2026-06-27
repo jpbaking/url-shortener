@@ -9,13 +9,34 @@ type State =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; shortUrl: string; expiresAt: string | null }
+  | { status: 'duplicate'; message: string; shortUrl: string; expiresAt: string | null; waitLabel: string }
   | { status: 'error'; message: string };
+
+type ShortenResponse = {
+  error?: string;
+  shortUrl?: string;
+  expiresAt?: string | null;
+  waitLabel?: string;
+};
 
 function formatExpiry(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+}
+
+function isNotFoundPath(): boolean {
+  return window.location.pathname !== '/';
+}
+
+function BrandLink({ domain }: { domain: string }) {
+  return (
+    <a className={styles.brandLine} href="/" aria-label="Go to shortener home">
+      <img className={styles.logo} src="/design/assets/logo-mark.svg" alt="" />
+      <span className={styles.wordmark}>{domain}</span>
+    </a>
+  );
 }
 
 export default function App() {
@@ -29,7 +50,7 @@ export default function App() {
   const domain = window.location.hostname;
 
   useEffect(() => {
-    document.title = `${domain} — URL Shortener`;
+    document.title = isNotFoundPath() ? `404 — ${domain}` : `${domain} — URL Shortener`;
   }, [domain]);
 
   async function shorten() {
@@ -52,16 +73,27 @@ export default function App() {
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
+      const data = await res.json() as ShortenResponse;
 
       if (!res.ok) {
+        if (res.status === 429 && data.shortUrl) {
+          setState({
+            status: 'duplicate',
+            message: data.error ?? 'This URL was already shortened recently.',
+            shortUrl: data.shortUrl,
+            expiresAt: data.expiresAt ?? null,
+            waitLabel: data.waitLabel ?? 'a little longer',
+          });
+          return;
+        }
+
         setState({ status: 'error', message: data.error ?? 'Something went wrong.' });
         return;
       }
 
       setState({
         status: 'success',
-        shortUrl: data.shortUrl,
+        shortUrl: data.shortUrl ?? '',
         expiresAt: data.expiresAt ?? null,
       });
     } catch {
@@ -102,14 +134,47 @@ export default function App() {
 
   const isLoading = state.status === 'loading';
 
+  if (isNotFoundPath()) {
+    return (
+      <main className={styles.main}>
+        <section className={styles.hero} aria-labelledby="page-title">
+          <header className={styles.header}>
+            <BrandLink domain={domain} />
+            <p className={styles.kicker}>404</p>
+            <h1 id="page-title" className={styles.title}>This short path does not exist.</h1>
+            <p className={styles.tagline}>Check the address, or return to the shortener.</p>
+          </header>
+        </section>
+
+        <section className={`${styles.card} ${styles.notFoundCard}`} aria-label="Page not found">
+          <p className={styles.notFoundCode}>{window.location.pathname}</p>
+          <p className={styles.notFoundText}>
+            This page is not part of the configured shortener interface.
+          </p>
+          <a className={styles.homeLink} href="/">
+            Go to shortener
+          </a>
+        </section>
+
+        <footer className={styles.footer}>
+          <span>Links without an expiry date never expire.</span>
+        </footer>
+      </main>
+    );
+  }
+
   return (
     <main className={styles.main}>
-      <div className={styles.card}>
+      <section className={styles.hero} aria-labelledby="page-title">
         <header className={styles.header}>
-          <span className={styles.wordmark}>{domain}</span>
+          <BrandLink domain={domain} />
+          <p className={styles.kicker}>Self-hosted URL shortener</p>
+          <h1 id="page-title" className={styles.title}>Short links, under your control.</h1>
           <p className={styles.tagline}>Paste a long URL. Get a short one.</p>
         </header>
+      </section>
 
+      <section className={styles.card} aria-label="Create a short URL">
         <div className={styles.inputRow}>
           <input
             ref={inputRef}
@@ -162,9 +227,16 @@ export default function App() {
           <p className={styles.error} role="alert">{state.message}</p>
         )}
 
-        {state.status === 'success' && (
+        {(state.status === 'success' || state.status === 'duplicate') && (
           <div className={styles.result} role="region" aria-label="Shortened URL">
-            <span className={styles.resultLabel}>Your short URL</span>
+            {state.status === 'duplicate' && (
+              <p className={styles.notice} role="alert">
+                {state.message}
+              </p>
+            )}
+            <span className={styles.resultLabel}>
+              {state.status === 'duplicate' ? 'Most recent short URL' : 'Your short URL'}
+            </span>
             <div className={styles.resultRow}>
               <a
                 className={styles.shortUrl}
@@ -187,12 +259,17 @@ export default function App() {
                 Expires {formatExpiry(state.expiresAt)}
               </p>
             )}
+            {state.status === 'duplicate' && (
+              <p className={styles.expiryNote}>
+                Wait about {state.waitLabel}, or until the existing short URL expires, to generate a unique new short URL for this address.
+              </p>
+            )}
             <button className={styles.resetLink} onClick={reset}>
               Shorten another
             </button>
           </div>
         )}
-      </div>
+      </section>
 
       <footer className={styles.footer}>
         <span>Links without an expiry date never expire.</span>
