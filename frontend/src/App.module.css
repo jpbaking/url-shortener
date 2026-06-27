@@ -279,6 +279,23 @@
   font-size: var(--ui-small);
 }
 
+.customIdToggle {
+  padding: 0;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--ui-kicker);
+  letter-spacing: var(--track-label);
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.customIdToggle:hover {
+  color: var(--text-primary);
+}
+
 .customIdRow {
   display: flex;
   align-items: center;

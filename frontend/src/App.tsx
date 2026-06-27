@@ -54,6 +54,7 @@ export default function App() {
   const [expiryValue, setExpiryValue]       = useState('');
   const [expiryUnit, setExpiryUnit]         = useState<ExpiryUnit>('days');
   const [customCode, setCustomCode]         = useState('');
+  const [showCustomId, setShowCustomId]     = useState(false);
   const [state, setState]                   = useState<State>({ status: 'idle' });
   const [copied, setCopied]                 = useState(false);
   const [maxExpiryMonths, setMaxExpiryMonths] = useState(12);
@@ -159,6 +160,7 @@ export default function App() {
     setExpiryValue('');
     setExpiryUnit('days');
     setCustomCode('');
+    setShowCustomId(false);
     setState({ status: 'idle' });
     setCopied(false);
     setTimeout(() => inputRef.current?.focus(), 0);
@@ -255,19 +257,26 @@ export default function App() {
           </select>
         </div>
 
-        <div className={styles.customIdRow}>
-          <span className={styles.expiryLabel}>Custom ID</span>
-          <input
-            className={styles.customIdInput}
-            type="text"
-            placeholder="optional"
-            value={customCode}
-            onChange={e => setCustomCode(e.target.value)}
-            disabled={isLoading}
-            aria-label="Custom short ID"
-            maxLength={16}
-          />
-        </div>
+        {!showCustomId ? (
+          <button className={styles.customIdToggle} onClick={() => setShowCustomId(true)}>
+            [ use custom ID ]
+          </button>
+        ) : (
+          <div className={styles.customIdRow}>
+            <span className={styles.expiryLabel}>Custom ID</span>
+            <input
+              className={styles.customIdInput}
+              type="text"
+              placeholder="my-short-link"
+              value={customCode}
+              onChange={e => setCustomCode(e.target.value)}
+              disabled={isLoading}
+              aria-label="Custom short ID"
+              maxLength={16}
+              autoFocus
+            />
+          </div>
+        )}
 
         {expiryTooLong && (
           <p className={styles.error} role="alert">
