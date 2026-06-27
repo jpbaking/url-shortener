@@ -372,7 +372,7 @@ function redirectLandingPage(code: string, target: string): string {
         <p class="dest-url">${safeTarget}</p>
 
         <div class="disclaimer" role="note">
-          <p><strong>${sDomain}</strong> and its operators are not affiliated with this destination and accept no responsibility for its content, accuracy, or safety. Only proceed if you trust the source of this link.</p>
+          <p>The operators of <strong>${sDomain}</strong> are not affiliated with this destination and accept no responsibility for its content, accuracy, or safety. Only proceed if you trust the source of this link.</p>
         </div>
 
         <div class="actions">
