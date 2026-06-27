@@ -4,6 +4,8 @@ import { PrismaClient } from '@prisma/client';
 const router = Router();
 const prisma = new PrismaClient();
 
+const logoMarkSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect x="3" y="3" width="58" height="58" rx="13" fill="#12279E"/><g transform="translate(42,42) rotate(45)"><rect x="-17" y="-6.5" width="34" height="13" rx="6.5" fill="none" stroke="#D9821F" stroke-width="3.2"/></g><g transform="translate(22,22) rotate(45)"><rect x="-17" y="-6.5" width="34" height="13" rx="6.5" fill="#12279E"/><rect x="-17" y="-6.5" width="34" height="13" rx="6.5" fill="none" stroke="#FFFFFF" stroke-width="3.2"/></g></svg>`;
+
 const meshBlueSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1060" height="1010" viewBox="0 0 1060 1010"><g stroke="#12279E" stroke-width="1.5" fill="none"><path d="M120 70 L300 110 L470 60 L650 120 L820 70 L960 140 M70 260 L250 230 L430 280 L610 240 L790 290 L950 250 M140 430 L320 460 L500 410 L680 450 L860 420 L980 470 M80 610 L260 580 L450 630 L620 590 L800 640 L940 600 M150 790 L330 760 L510 810 L690 770 L870 800 L990 760 M90 940 L280 920 L470 960 L650 930 L830 950 L960 930 M120 70 L70 260 L140 430 L80 610 L150 790 L90 940 M300 110 L250 230 L320 460 L260 580 L330 760 L280 920 M470 60 L430 280 L500 410 L450 630 L510 810 L470 960 M650 120 L610 240 L680 450 L620 590 L690 770 L650 930 M820 70 L790 290 L860 420 L800 640 L870 800 L830 950 M960 140 L950 250 L980 470 L940 600 L990 760 L960 930 M300 110 L430 280 M610 240 L860 420 M320 460 L450 630 M620 590 L870 800 M330 760 L470 960 M650 120 L790 290 M500 410 L620 590 M250 230 L500 410 M260 580 L510 810 M980 470 L800 640 M470 60 L610 240 M690 770 L830 950 M790 290 L980 470 M450 630 L690 770"></path></g><circle cx="120" cy="70" r="5" fill="#12279E"></circle><circle cx="300" cy="110" r="5" fill="#12279E"></circle><circle cx="470" cy="60" r="5" fill="#12279E"></circle><circle cx="820" cy="70" r="5" fill="#12279E"></circle><circle cx="960" cy="140" r="5" fill="#12279E"></circle><circle cx="70" cy="260" r="5" fill="#12279E"></circle><circle cx="250" cy="230" r="5" fill="#12279E"></circle><circle cx="610" cy="240" r="5" fill="#12279E"></circle><circle cx="790" cy="290" r="5" fill="#12279E"></circle><circle cx="950" cy="250" r="5" fill="#12279E"></circle><circle cx="140" cy="430" r="5" fill="#12279E"></circle><circle cx="320" cy="460" r="5" fill="#12279E"></circle><circle cx="500" cy="410" r="5" fill="#12279E"></circle><circle cx="680" cy="450" r="5" fill="#12279E"></circle><circle cx="980" cy="470" r="5" fill="#12279E"></circle><circle cx="80" cy="610" r="5" fill="#12279E"></circle><circle cx="260" cy="580" r="5" fill="#12279E"></circle><circle cx="450" cy="630" r="5" fill="#12279E"></circle><circle cx="800" cy="640" r="5" fill="#12279E"></circle><circle cx="940" cy="600" r="5" fill="#12279E"></circle><circle cx="150" cy="790" r="5" fill="#12279E"></circle><circle cx="510" cy="810" r="5" fill="#12279E"></circle><circle cx="690" cy="770" r="5" fill="#12279E"></circle><circle cx="870" cy="800" r="5" fill="#12279E"></circle><circle cx="990" cy="760" r="5" fill="#12279E"></circle><circle cx="90" cy="940" r="5" fill="#12279E"></circle><circle cx="280" cy="920" r="5" fill="#12279E"></circle><circle cx="650" cy="930" r="5" fill="#12279E"></circle><circle cx="830" cy="950" r="5" fill="#12279E"></circle><circle cx="960" cy="930" r="5" fill="#12279E"></circle><circle cx="430" cy="280" r="8" fill="#D9821F"></circle><circle cx="620" cy="590" r="8" fill="#D9821F"></circle><circle cx="860" cy="420" r="8" fill="#D9821F"></circle><circle cx="330" cy="760" r="8" fill="#D9821F"></circle><circle cx="650" cy="120" r="8" fill="#D9821F"></circle><circle cx="470" cy="960" r="8" fill="#D9821F"></circle></svg>`;
 const meshWhiteSvg = meshBlueSvg
   .replace(/#12279E/g, '#FFFFFF')
@@ -25,6 +27,7 @@ function htmlEscape(s: string): string {
 function statusPage(status: number, kicker: string, title: string, message: string): string {
   const meshBlue = svgDataUri(meshBlueSvg);
   const meshWhite = svgDataUri(meshWhiteSvg);
+  const favicon = svgDataUri(logoMarkSvg);
 
   return `<!doctype html>
 <html lang="en">
@@ -32,6 +35,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${status} — ${htmlEscape(title)}</title>
+    <link rel="icon" href="${favicon}" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -226,15 +230,7 @@ function statusPage(status: number, kicker: string, title: string, message: stri
     <main>
       <section class="hero" aria-labelledby="page-title">
         <div class="brand">
-          <svg class="mark" viewBox="0 0 64 64" role="img" aria-label="">
-            <rect x="3" y="3" width="58" height="58" rx="13" fill="#12279E"></rect>
-            <g stroke="#FFFFFF" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M24 54 L30 23 M40 54 L34 23 M30 23 L34 23"></path>
-              <path d="M25.7 46 L38.3 46 M27 38 L37 38 M28.5 30.5 L35.5 30.5"></path>
-              <path d="M37 13 A 7 7 0 0 1 37 21 M41 10 A 11 11 0 0 1 41 24 M27 13 A 7 7 0 0 0 27 21 M23 10 A 11 11 0 0 0 23 24" opacity="0.9"></path>
-            </g>
-            <circle cx="32" cy="17" r="3.4" fill="#D9821F"></circle>
-          </svg>
+          <img class="mark" src="${favicon}" alt="" />
           <span class="wordmark">${htmlEscape(process.env.S_DOMAIN ?? 'short link')}</span>
         </div>
         <p class="kicker">${htmlEscape(kicker)}</p>
