@@ -4,9 +4,9 @@
 
 Self-hosted URL shortener. Users paste a long URL into the web UI and receive a short link. Clicking the short link opens a branded landing page showing the destination domain and a disclaimer; the user clicks Proceed to navigate or Go Back to cancel.
 
-Two domains, one backend:
+One or two domains, one backend:
 - `short.url` — React SPA where users shorten URLs.
-- `s.url` — short link resolution; all requests proxy directly to the backend redirect handler.
+- `s.url` — optional short link resolution host; when `S_DOMAIN` is blank, short links are served as `${SHORT_DOMAIN}/{code}` instead.
 
 Stack: React + Vite (frontend), Express + Prisma + PostgreSQL (backend), Nginx (reverse proxy). All services run via Docker Compose.
 
@@ -14,21 +14,21 @@ Stack: React + Vite (frontend), Express + Prisma + PostgreSQL (backend), Nginx (
 
 - `docker-compose.yml` at the root is the single source of truth for how services connect. Only Nginx (port 80) is exposed externally; backend and postgres are internal.
 - Run Docker Compose operations through `./compose-helper.sh`, which pins the project name from `compose-helper.env`, loads `.env`, and wraps common local workflows.
-- Intended upstream proxies: **cloudflared** (public internet access via Cloudflare Tunnel) and **nginx-proxy-manager** (internal LAN access). Nginx trusts RFC-1918 ranges for real-IP resolution; do not expose Nginx directly to untrusted networks.
+- Example upstream proxies: **cloudflared** for public access through Cloudflare Tunnel, and **nginx-proxy-manager** for internal LAN access. Nginx trusts RFC-1918 ranges for real-IP resolution; do not expose Nginx directly to untrusted networks.
 - Root `.env` (copy from `.env.example`) supplies these variables consumed by Compose:
-  - `POSTGRES_DB` — database name
-  - `POSTGRES_PASSWORD` — postgres superuser password
+  - `POSTGRES_DB` — required database name
+  - `POSTGRES_PASSWORD` — required postgres superuser password
   - `SHORT_DOMAIN` — hostname for the SPA, e.g. `short.url` (default: `short.url`)
-  - `S_DOMAIN` — hostname for short link resolution, e.g. `s.url` (default: `s.url`)
+  - `S_DOMAIN` — optional hostname for short link resolution, e.g. `s.url`; leave blank or unset/comment it out to serve short links from `SHORT_DOMAIN/{code}`
   - `S_SCHEME` — scheme for short links shown to users, `http` or `https` (default: `http`)
   - `SHORTEN_COOLDOWN_MINUTES` — minutes the same browser-scoped client must wait before the same `longUrl` can generate a unique new code (default: `60`)
   - `MAX_LINK_EXPIRY_MONTHS` — maximum lifetime applied to links and the default lifetime when no explicit expiry is supplied (default: `12`)
-  - `IP_HASH_SECRET` — stable HMAC secret used to anonymize client IPs before storage
-  - `CLIENT_ID_HASH_SECRET` — stable HMAC secret used to anonymize browser-scoped client IDs before storage
+  - `IP_HASH_SECRET` — required stable HMAC secret used to anonymize client IPs before storage
+  - `CLIENT_ID_HASH_SECRET` — required stable HMAC secret used to anonymize browser-scoped client IDs before storage
   - `CLIENT_COOKIE_NAME` — anonymous client ID cookie name (default: `lw_client_id`)
   - `CLIENT_COOKIE_MAX_AGE_DAYS` — anonymous client ID cookie lifetime in days (default: `365`)
-- Compose assembles `REDIRECT_DOMAIN` as `${S_SCHEME}://${S_DOMAIN}` and injects it alongside `DATABASE_URL` into the backend.
-- Nginx reads `SHORT_DOMAIN` and `S_DOMAIN` to populate `nginx.conf.template` via `envsubst` at container start.
+- The backend derives the public short-link base URL as `${S_SCHEME}://${S_DOMAIN}` when `S_DOMAIN` is set, otherwise `${S_SCHEME}://${SHORT_DOMAIN}`.
+- Nginx renders either the dual-domain or single-domain config at container start based on whether `S_DOMAIN` is set.
 - Postgres data is persisted in the named volume `pg_data`; removing this volume drops all shortened URLs.
 - The backend waits for Postgres to pass its healthcheck before starting (`depends_on: condition: service_healthy`).
 
@@ -38,8 +38,8 @@ Stack: React + Vite (frontend), Express + Prisma + PostgreSQL (backend), Nginx (
 - Stop the stack while keeping data: `./compose-helper.sh stop`.
 - Stop and wipe the database volume: `./compose-helper.sh down`.
 - Check logs: `./compose-helper.sh logs` for all services, or `./compose-helper.sh logs <service>` for a specific service such as `nginx`, `backend`, or `postgres`.
-- First-time setup: copy `.env.example` → `.env`, set your real domains in `SHORT_DOMAIN` / `S_DOMAIN`, and set `S_SCHEME=https` if serving over TLS.
-- Reaching the app from a host browser: `SHORT_DOMAIN` / `S_DOMAIN` are not real DNS names, so add them to `/etc/hosts` (e.g. `127.0.0.1 short.url s.url`) to load the SPA and short links locally. (The Playwright container resolves these via Docker network aliases and needs no hosts edits — see [playwright/](playwright/AGENTS.md).)
+- First-time setup: copy `.env.example` → `.env`, set required database and HMAC secret values, set your real domain in `SHORT_DOMAIN`, optionally set `S_DOMAIN` if you want a dedicated short-link host, and set `S_SCHEME=https` if serving over TLS.
+- Reaching the app from a host browser: these are not real DNS names, so add your configured hostnames to `/etc/hosts` (for example `127.0.0.1 short.url s.url`, or just `127.0.0.1 short.url` in single-domain mode). The Playwright container resolves them via Docker network aliases and needs no hosts edits — see [playwright/](playwright/AGENTS.md).
 - End-to-end verification: the Playwright suite is the fastest full-stack check — see [playwright/](playwright/AGENTS.md).
 
 ## User Preferences
@@ -53,7 +53,7 @@ When the user requests a durable behavior change, record it here or in the relev
 
 - [backend/](backend/AGENTS.md) — Express + Prisma API service; shortening logic, redirect handler, base62 encoding, DB schema
 - [frontend/](frontend/AGENTS.md) — React SPA (Vite); URL input form, config-driven expiry limits, optional custom code, result display, client-side 404
-- [nginx/](nginx/AGENTS.md) — Nginx reverse proxy; routes `${SHORT_DOMAIN}` to the SPA and `${S_DOMAIN}` to the backend redirect handler; domains set via `.env`
+- [nginx/](nginx/AGENTS.md) — Nginx reverse proxy; serves dual-domain or single-domain routing based on `.env`
 - [playwright/](playwright/AGENTS.md) — Playwright E2E suite; 45 tests covering the API, redirect handler, and SPA; runs against the live Docker Compose stack
 
 # DOX framework

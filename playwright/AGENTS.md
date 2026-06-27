@@ -11,7 +11,7 @@ All test files live in `tests/`. The suite runs against the live Docker Compose 
 - Stack must be up before running tests: `./compose-helper.sh rebuild` from the repo root.
 - Run via the Compose helper (primary): `./compose-helper.sh --profile test run --rm playwright`
 - The playwright service is in the `test` profile and does not start with the normal stack.
-- Inside the container, `short.url` and `s.url` resolve to nginx via Docker network aliases — no `/etc/hosts` edits required.
+- Inside the container, `SHORT_DOMAIN` always resolves to nginx and `S_DOMAIN` resolves too when set — no `/etc/hosts` edits required.
 - Tests that write to the database (expired-link fixture, click-count checks, rate-limit-elapsed backdating) connect directly to the `postgres` service using the `pg` client and the `POSTGRES_DB`/`POSTGRES_PASSWORD` env vars injected by Compose.
 
 ## Work Guidance

@@ -16,7 +16,7 @@ All API behavior: short code generation, custom-code claims, expiry logic, `GET 
 - `GET /api/config` returns `{ maxExpiryMonths: number }` from `MAX_LINK_EXPIRY_MONTHS` (default 12).
 - `longUrl` must start with `http://` or `https://` and be ≤ 2048 characters.
 - Expiry units: `minutes`, `hours`, `days`, `weeks`, `months`. Omitting `expiryValue` assigns the maximum lifetime (`MAX_LINK_EXPIRY_MONTHS`). Explicit expiry exceeding the maximum is rejected with 400.
-- `REDIRECT_DOMAIN` env var sets the domain prefix in the returned short URL (no trailing slash).
+- Public short URLs use `${S_SCHEME}://${S_DOMAIN}` when `S_DOMAIN` is set, otherwise `${S_SCHEME}://${SHORT_DOMAIN}`.
 - `SHORT_DOMAIN` env var sets the wordmark shown on server-rendered HTML pages (status pages and landing page).
 - `S_SCHEME` env var sets the scheme used when constructing the home URL on server-rendered pages.
 - `SHORTEN_COOLDOWN_MINUTES` env var sets the duplicate-submission cooldown window in minutes (default 60; invalid values fall back to 60).
