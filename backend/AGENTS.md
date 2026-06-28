@@ -4,13 +4,14 @@ Express + TypeScript API service. Owns URL shortening and redirect resolution. U
 
 ## Ownership
 
-All API behavior: short code generation, custom-code claims, expiry logic, `GET /api/config`, browser-scoped dedup, landing-page resolution, click counting, and the database schema.
+All API behavior: short code generation, active-link listing, custom-code claims, expiry logic, `GET /api/config`, browser-scoped dedup, landing-page resolution, click counting, anonymous identity hashing, and the database schema.
 
 ## Local Contracts
 
 - Short codes are random alphanumeric strings generated from a 62-character alphabet (`src/base62.ts` → `generateCode(length)`). Minimum length is 6, maximum is 16. Creation attempts a direct insert at length 6; on each `P2002` unique-constraint collision the length increments by 1 and retries up to 16.
 - **Custom codes:** the caller may supply a `customCode` (3–16 chars, `[a-zA-Z0-9][a-zA-Z0-9_-]{1,14}[a-zA-Z0-9]`). Before inserting, any existing record with that code whose `expiresAt ≤ now` is deleted (reclaim). If the slot is still occupied by an active link, returns 409. Custom codes bypass the cooldown/dedup check.
 - Every accepted submission always creates a new short code, even if another browser or device behind the same IP submits the same `longUrl`.
+- `GET /api/shorten` returns the 20 newest active short URLs for the anonymous browser-scoped client, newest first. Expired rows are excluded. If the request has no valid client cookie, it returns an empty list without creating a new cookie.
 - Rate limit: if the same browser-scoped client submits the same `longUrl` within `SHORTEN_COOLDOWN_MINUTES` of a prior non-expired submission, the request is rejected with 429, a `Retry-After` header (seconds until the window clears), and the most recent short URL for that client + URL. Expired prior links do not block new short-code creation. Rate limit does not apply to custom-code requests.
 - Redirect resolution returns a `200` branded HTML landing page (not a 302). All failure outcomes also render branded HTML pages: invalid code = 400, missing code = 404, expired code = 410.
 - `GET /api/config` returns `{ maxExpiryMonths: number }` from `MAX_LINK_EXPIRY_MONTHS` (default 12).

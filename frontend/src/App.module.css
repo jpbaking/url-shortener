@@ -482,6 +482,109 @@
   color: var(--text-primary);
 }
 
+.activeList {
+  width: min(100%, 860px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) 0 0;
+  border-top: var(--border-hair) solid var(--border-default);
+}
+
+.activeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.activeTitle {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--ui-kicker);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+}
+
+.activeCount {
+  min-width: 28px;
+  padding: 2px var(--space-1);
+  color: var(--text-secondary);
+  background: var(--surface-alt);
+  border: var(--border-hair) solid var(--border-default);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--ui-kicker);
+  text-align: center;
+}
+
+.emptyActiveList {
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--ui-small);
+}
+
+.activeItems {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.activeItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: start;
+  padding: var(--space-3);
+  background: var(--base);
+  border: var(--border-hair) solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+
+.activeLinkBlock {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activeShortUrl {
+  color: var(--brand-blue);
+  font-family: var(--font-mono);
+  font-size: var(--ui-small);
+  font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.activeLongUrl {
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--ui-small);
+  overflow: hidden;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.activeShortUrl:hover,
+.activeLongUrl:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.activeMeta {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--ui-small);
+}
+
 .footer {
   width: min(100%, 860px);
   color: var(--text-secondary);
@@ -532,7 +635,8 @@
   }
 
   .inputRow,
-  .resultRow {
+  .resultRow,
+  .activeItem {
     grid-template-columns: 1fr;
   }
 

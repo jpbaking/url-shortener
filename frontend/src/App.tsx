@@ -29,6 +29,19 @@ type ShortenResponse = {
   waitLabel?: string;
 };
 
+type ActiveShortUrl = {
+  code: string;
+  longUrl: string;
+  shortUrl: string;
+  clickCount: number;
+  expiresAt: string | null;
+  createdAt: string;
+};
+
+type ActiveShortUrlsResponse = {
+  links?: ActiveShortUrl[];
+};
+
 function formatExpiry(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -56,7 +69,9 @@ export default function App() {
   const [customCode, setCustomCode]         = useState('');
   const [showCustomId, setShowCustomId]     = useState(false);
   const [state, setState]                   = useState<State>({ status: 'idle' });
-  const [copied, setCopied]                 = useState(false);
+  const [copiedKey, setCopiedKey]           = useState('');
+  const [activeLinks, setActiveLinks]       = useState<ActiveShortUrl[]>([]);
+  const [activeLinksLoaded, setActiveLinksLoaded] = useState(false);
   const [maxExpiryMonths, setMaxExpiryMonths] = useState(12);
   const inputRef                            = useRef<HTMLInputElement>(null);
 
@@ -82,12 +97,29 @@ export default function App() {
       .catch(() => {});
   }, []);
 
+  async function loadActiveLinks() {
+    try {
+      const res = await fetch('/api/shorten');
+      if (!res.ok) return;
+      const data = await res.json() as ActiveShortUrlsResponse;
+      setActiveLinks(Array.isArray(data.links) ? data.links : []);
+    } catch {
+      // The list is helpful context, not part of the shortening critical path.
+    } finally {
+      setActiveLinksLoaded(true);
+    }
+  }
+
+  useEffect(() => {
+    void loadActiveLinks();
+  }, []);
+
   async function shorten() {
     const trimmed = longUrl.trim();
     if (!trimmed) return;
 
     setState({ status: 'loading' });
-    setCopied(false);
+    setCopiedKey('');
 
     const body: Record<string, unknown> = { longUrl: trimmed };
     if (expiryValue.trim() !== '') {
@@ -116,6 +148,7 @@ export default function App() {
             expiresAt: data.expiresAt ?? null,
             waitLabel: data.waitLabel ?? 'a little longer',
           });
+          void loadActiveLinks();
           return;
         }
 
@@ -128,6 +161,7 @@ export default function App() {
         shortUrl: data.shortUrl ?? '',
         expiresAt: data.expiresAt ?? null,
       });
+      void loadActiveLinks();
     } catch {
       setState({ status: 'error', message: 'Could not reach the server. Try again.' });
     }
@@ -137,7 +171,7 @@ export default function App() {
     if (e.key === 'Enter') shorten();
   }
 
-  async function copyToClipboard(text: string) {
+  async function copyToClipboard(text: string, key: string) {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -151,8 +185,10 @@ export default function App() {
       document.execCommand('copy');
       document.body.removeChild(el);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedKey(key);
+    setTimeout(() => {
+      setCopiedKey(current => current === key ? '' : current);
+    }, 2000);
   }
 
   function reset() {
@@ -162,11 +198,12 @@ export default function App() {
     setCustomCode('');
     setShowCustomId(false);
     setState({ status: 'idle' });
-    setCopied(false);
+    setCopiedKey('');
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   const isLoading = state.status === 'loading';
+  const resultCopied = copiedKey === 'result';
 
   if (isNotFoundPath()) {
     return (
@@ -323,10 +360,10 @@ export default function App() {
               </a>
               <button
                 className={styles.copyButton}
-                onClick={() => copyToClipboard((state as Extract<State, { status: 'success' }>).shortUrl)}
-                aria-label={copied ? 'Copied' : 'Copy to clipboard'}
+                onClick={() => copyToClipboard((state as Extract<State, { status: 'success' }>).shortUrl, 'result')}
+                aria-label={resultCopied ? 'Copied' : 'Copy to clipboard'}
               >
-                {copied ? 'Copied!' : 'Copy'}
+                {resultCopied ? 'Copied!' : 'Copy'}
               </button>
             </div>
             {state.expiresAt && (
@@ -345,6 +382,60 @@ export default function App() {
           </div>
         )}
       </section>
+
+      {activeLinksLoaded && (
+        <section className={styles.activeList} aria-label="Created active short URLs">
+          <header className={styles.activeHeader}>
+            <h2 className={styles.activeTitle}>Created active short URLs</h2>
+            <span className={styles.activeCount}>{activeLinks.length}</span>
+          </header>
+
+          {activeLinks.length === 0 ? (
+            <p className={styles.emptyActiveList}>No active short URLs in this browser yet.</p>
+          ) : (
+            <div className={styles.activeItems}>
+              {activeLinks.map(link => {
+                const copyKey = `active:${link.code}`;
+                const rowCopied = copiedKey === copyKey;
+                return (
+                  <article className={styles.activeItem} key={`${link.code}-${link.createdAt}`}>
+                    <div className={styles.activeLinkBlock}>
+                      <a
+                        className={styles.activeShortUrl}
+                        href={link.shortUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {link.shortUrl}
+                      </a>
+                      <a
+                        className={styles.activeLongUrl}
+                        href={link.longUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {link.longUrl}
+                      </a>
+                    </div>
+                    <div className={styles.activeMeta}>
+                      <span>Created {formatExpiry(link.createdAt)}</span>
+                      {link.expiresAt && <span>Expires {formatExpiry(link.expiresAt)}</span>}
+                      <span>{link.clickCount} click{link.clickCount === 1 ? '' : 's'}</span>
+                    </div>
+                    <button
+                      className={styles.copyButton}
+                      onClick={() => copyToClipboard(link.shortUrl, copyKey)}
+                      aria-label={rowCopied ? 'Copied' : `Copy ${link.shortUrl}`}
+                    >
+                      {rowCopied ? 'Copied!' : 'Copy'}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
 
       <footer className={styles.footer}>
         <span>All short links expire. Omit expiry to use the configured maximum.</span>

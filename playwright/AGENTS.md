@@ -24,4 +24,4 @@ All test files live in `tests/`. The suite runs against the live Docker Compose 
 
 ## Verification
 
-`./compose-helper.sh --profile test run --rm playwright` — all 45 tests must pass.
+`./compose-helper.sh --profile test run --rm playwright` — all 47 tests must pass.

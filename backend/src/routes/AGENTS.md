@@ -1,10 +1,10 @@
 ## Purpose
 
-Express route handlers for the two core operations: shortening a URL and resolving a short code to the branded landing page.
+Express route handlers for shortening URLs, listing the current browser's active short URLs, and resolving a short code to the branded landing page.
 
 ## Ownership
 
-- `shorten.ts` — `POST /api/shorten`
+- `shorten.ts` — `GET /api/shorten` and `POST /api/shorten`
 - `redirect.ts` — `GET /:code`
 - `../index.ts` owns `GET /api/config` plus route registration order
 
@@ -12,6 +12,7 @@ Express route handlers for the two core operations: shortening a URL and resolvi
 
 ### shorten.ts
 
+- `GET /api/shorten` returns `{ links: [...] }` for the current anonymous browser cookie. Each item includes `code`, `longUrl`, `shortUrl`, `clickCount`, nullable `expiresAt`, and `createdAt`. Results are active-only, newest first, capped at 20 rows, and use the same public host-selection rule as successful creates. Requests with no valid client cookie return an empty list and do not set a cookie.
 - Accepts JSON body: `{ longUrl: string, expiryValue?: number, expiryUnit?: ExpiryUnit, customCode?: string }`.
 - Returns `{ shortUrl: string, expiresAt: string }` with status `201` on success. `shortUrl` uses `${S_SCHEME}://${S_DOMAIN}/{code}` when `S_DOMAIN` is set, otherwise `${S_SCHEME}://${SHORT_DOMAIN}/{code}`. `expiresAt` is always a non-null ISO string for newly created rows: omitting the expiry field uses `MAX_LINK_EXPIRY_MONTHS` as the default; explicit expiry is capped at the same maximum.
 - Creation attempts a direct insert with a random 6-char code, retrying with incrementally longer codes (up to 16) on `P2002` collisions.

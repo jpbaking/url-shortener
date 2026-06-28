@@ -2,7 +2,7 @@
 
 ## Project
 
-Self-hosted URL shortener. Users paste a long URL into the web UI and receive a short link. Clicking the short link opens a branded landing page showing the destination domain and a disclaimer; the user clicks Proceed to navigate or Go Back to cancel.
+Self-hosted URL shortener. Users paste a long URL into the web UI, receive a short link, and see the active short URLs previously created in the same anonymous browser session. Clicking a short link opens a branded landing page showing the destination domain and a disclaimer; the user clicks Proceed to navigate or Go Back to cancel.
 
 One or two domains, one backend:
 - `short.url` — React SPA where users shorten URLs.
@@ -54,7 +54,7 @@ When the user requests a durable behavior change, record it here or in the relev
 - [backend/](backend/AGENTS.md) — Express + Prisma API service; shortening logic, redirect handler, base62 encoding, DB schema
 - [frontend/](frontend/AGENTS.md) — React SPA (Vite); URL input form, config-driven expiry limits, optional custom code, result display, client-side 404
 - [nginx/](nginx/AGENTS.md) — Nginx reverse proxy; serves dual-domain or single-domain routing based on `.env`
-- [playwright/](playwright/AGENTS.md) — Playwright E2E suite; 45 tests covering the API, redirect handler, and SPA; runs against the live Docker Compose stack
+- [playwright/](playwright/AGENTS.md) — Playwright E2E suite; 47 tests covering the API, redirect handler, and SPA; runs against the live Docker Compose stack
 
 # DOX framework
 

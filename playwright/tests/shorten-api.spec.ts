@@ -40,6 +40,47 @@ test.describe('POST /api/shorten', () => {
     expect(body.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
+  test('GET returns active short URLs for the current browser identity', async ({ request }) => {
+    const longUrl = uniqueUrl('/active-list');
+    const created = await request.post(API, {
+      data: { longUrl, expiryValue: 1, expiryUnit: 'hours' },
+    });
+    expect(created.status()).toBe(201);
+    const { shortUrl } = await created.json();
+
+    const response = await request.get(API);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body.links)).toBe(true);
+
+    const link = body.links.find((item: { shortUrl?: string }) => item.shortUrl === shortUrl);
+    expect(link).toMatchObject({
+      longUrl,
+      shortUrl,
+      clickCount: 0,
+    });
+    expect(link.code).toBe(shortUrl.split('/').pop());
+    expect(link.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(link.expiresAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  test('GET does not include expired short URLs', async ({ request }) => {
+    const longUrl = uniqueUrl('/active-list-expired');
+    const created = await request.post(API, {
+      data: { longUrl, expiryValue: 1, expiryUnit: 'minutes' },
+    });
+    expect(created.status()).toBe(201);
+    const { shortUrl } = await created.json();
+    const code = shortUrl.split('/').pop();
+
+    await psql(`UPDATE "ShortUrl" SET "expiresAt" = NOW() - INTERVAL '1 minute' WHERE code = '${code}'`);
+
+    const response = await request.get(API);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.links.some((item: { shortUrl?: string }) => item.shortUrl === shortUrl)).toBe(false);
+  });
+
   test('201 with correct expiresAt when expiry is supplied', async ({ request }) => {
     const before = Date.now();
     const response = await request.post(API, {
@@ -177,13 +218,6 @@ test.describe('POST /api/shorten', () => {
     const { error } = await response.json();
     expect(error).toMatch(/expiryUnit/);
     expect(error).toMatch(/minutes/);
-  });
-
-  test('405 JSON for GET request', async ({ request }) => {
-    const response = await request.get(API);
-    expect(response.status()).toBe(405);
-    expect(response.headers()['content-type']).toContain('application/json');
-    expect(await response.json()).toHaveProperty('error');
   });
 
   test('405 JSON for PUT request', async ({ request }) => {

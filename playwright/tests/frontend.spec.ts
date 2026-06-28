@@ -48,6 +48,27 @@ test.describe('React SPA', () => {
     await expect(result.getByRole('link')).toHaveAttribute('href', new RegExp(`^${S_SCHEME}://${REDIRECT_HOST.replace(/\./g, '\\.')}/`));
   });
 
+  test('created active short URLs list updates after shortening', async ({ page }) => {
+    const longUrl = uniqueUrl('/active-list-ui');
+    await page.goto(SPA);
+
+    const activeList = page.getByRole('region', { name: 'Created active short URLs' });
+    await expect(activeList.getByText('No active short URLs in this browser yet.')).toBeVisible();
+
+    await page.getByLabel('Long URL to shorten').fill(longUrl);
+    await page.getByLabel('Shorten URL').click();
+
+    const result = page.getByRole('region', { name: 'Shortened URL' });
+    await expect(result).toBeVisible();
+    const href = await result.getByRole('link').getAttribute('href');
+    expect(href).toBeTruthy();
+
+    await expect(activeList.getByRole('link', { name: href! })).toBeVisible();
+    await expect(activeList.getByRole('link', { name: longUrl })).toBeVisible();
+    await expect(activeList.getByText(/Created .* \d{4}/)).toBeVisible();
+    await expect(activeList.getByText(/0 clicks/)).toBeVisible();
+  });
+
   test('Enter key on the URL input triggers shortening', async ({ page }) => {
     await page.goto(SPA);
     await page.getByLabel('Long URL to shorten').fill(uniqueUrl());

@@ -1,6 +1,6 @@
 # URL Shortener
 
-A self-hosted URL shortener. Paste a long URL into the web UI and get a short link; visiting the short link opens a branded landing page showing the destination domain — the user clicks **Proceed** to navigate there, or **Go Back** to return.
+A self-hosted URL shortener. Paste a long URL into the web UI and get a short link; the page also shows active short URLs created in the same anonymous browser session. Visiting a short link opens a branded landing page showing the destination domain — the user clicks **Proceed** to navigate there, or **Go Back** to return.
 
 The app can run in **two-domain** or **single-domain** mode, both backed by one service:
 
@@ -170,6 +170,25 @@ Submitting the same URL from the same browser within `SHORTEN_COOLDOWN_MINUTES` 
 ```
 
 After the cooldown window clears, or once the previous matching short URL has expired, submitting the same URL creates a new short code.
+
+### `GET /api/shorten`
+
+Returns the newest active short URLs created by the current anonymous browser identity. Expired links are excluded. If the browser has not created any links yet, the list is empty.
+
+```json
+{
+  "links": [
+    {
+      "code": "aB3x9Z",
+      "longUrl": "https://example.com/some/very/long/path",
+      "shortUrl": "http://s.url/aB3x9Z",
+      "clickCount": 0,
+      "expiresAt": "2026-06-22T12:00:00.000Z",
+      "createdAt": "2026-06-21T12:00:00.000Z"
+    }
+  ]
+}
+```
 
 ### `GET /api/config`
 
